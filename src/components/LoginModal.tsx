@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { getToken, getAuthState } from "../loginservice/Login";
+import { getToken, getAuthState } from "../services/Login";
 import "./LoginModal.css";
 
 interface Props {

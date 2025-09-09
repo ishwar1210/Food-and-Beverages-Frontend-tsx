@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+// Use centralized API helpers instead of hardcoded fetch calls
+import {
+  listCuisines,
+  createRestaurant,
+  createSchedule,
+  createBlockedDay,
+  createTableBooking,
+  createOrderConfig,
+  uploadCoverImage,
+  uploadMenuImage,
+  uploadGalleryImage,
+  uploadOtherFile,
+} from "../api/endpoints";
 import "./Addestaurant.css";
 
 type Cuisine = {
@@ -132,35 +145,15 @@ export default function Restaurant(): React.ReactElement {
   useEffect(() => {
     const fetchCuisines = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8001/api/cuisines/", {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const cuisinesArray: Cuisine[] = Array.isArray(data)
-            ? data
-            : data.results || data.data || [];
-          setCuisines(cuisinesArray);
-        } else if (response.status === 403) {
-          const fallback: Cuisine[] = [
-            { id: 1, name: "Italian" },
-            { id: 2, name: "Chinese" },
-            { id: 3, name: "Indian" },
-          ];
-          setCuisines(fallback);
-        } else {
-          setCuisines([]);
-        }
-      } catch (error) {
-        const fallback: Cuisine[] = [
+        const data = await listCuisines();
+        setCuisines(Array.isArray(data) ? data : []);
+      } catch (err) {
+        // fallback sample data on failure (e.g., 403)
+        setCuisines([
           { id: 1, name: "Italian" },
           { id: 2, name: "Chinese" },
           { id: 3, name: "Indian" },
-        ];
-        setCuisines(fallback);
+        ]);
       } finally {
         setLoadingCuisines(false);
       }
@@ -208,15 +201,10 @@ export default function Restaurant(): React.ReactElement {
 
   const handleBlockedDaysSubmit = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:8001/api/blocked-days/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(blockedDaysData),
-      });
-      if (response.ok) alert("Blocked days saved successfully!");
-      else alert("Error saving blocked days.");
+      await createBlockedDay(blockedDaysData);
+      alert("Blocked days saved successfully!");
     } catch (error) {
-      alert("Network error while saving blocked days.");
+      alert("Error saving blocked days.");
     }
   };
 
@@ -259,15 +247,7 @@ export default function Restaurant(): React.ReactElement {
     try {
       // Basic restaurant details
       try {
-        const res = await fetch("http://127.0.0.1:8001/api/restaurants/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        });
-        if (!res.ok) {
-          allSuccess = false;
-          errorMessages.push("Failed to save restaurant basic details");
-        }
+        await createRestaurant(formData);
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving restaurant basic details");
@@ -275,15 +255,7 @@ export default function Restaurant(): React.ReactElement {
 
       // Schedule
       try {
-        const res = await fetch("http://127.0.0.1:8001/api/schedules/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(scheduleData),
-        });
-        if (!res.ok) {
-          allSuccess = false;
-          errorMessages.push("Failed to save restaurant schedule");
-        }
+        await createSchedule(scheduleData);
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving restaurant schedule");
@@ -291,15 +263,7 @@ export default function Restaurant(): React.ReactElement {
 
       // Blocked days
       try {
-        const res = await fetch("http://127.0.0.1:8001/api/blocked-days/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(blockedDaysData),
-        });
-        if (!res.ok) {
-          allSuccess = false;
-          errorMessages.push("Failed to save blocked days");
-        }
+        await createBlockedDay(blockedDaysData);
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving blocked days");
@@ -307,15 +271,7 @@ export default function Restaurant(): React.ReactElement {
 
       // Table bookings
       try {
-        const res = await fetch("http://127.0.0.1:8001/api/table-bookings/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(tableBookingsData),
-        });
-        if (!res.ok) {
-          allSuccess = false;
-          errorMessages.push("Failed to save table bookings");
-        }
+        await createTableBooking(tableBookingsData);
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving table bookings");
@@ -323,15 +279,7 @@ export default function Restaurant(): React.ReactElement {
 
       // Order config
       try {
-        const res = await fetch("http://127.0.0.1:8001/api/order-configs/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(orderConfigData),
-        });
-        if (!res.ok) {
-          allSuccess = false;
-          errorMessages.push("Failed to save order configure");
-        }
+        await createOrderConfig(orderConfigData);
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving order configure");
@@ -342,14 +290,7 @@ export default function Restaurant(): React.ReactElement {
         try {
           const fd = new FormData();
           fd.append("coverImage", coverImageData.coverImage);
-          const res = await fetch("http://127.0.0.1:8001/api/cover-images/", {
-            method: "POST",
-            body: fd,
-          });
-          if (!res.ok) {
-            allSuccess = false;
-            errorMessages.push("Failed to upload cover image");
-          }
+          await uploadCoverImage(fd);
         } catch (err) {
           allSuccess = false;
           errorMessages.push("Error uploading cover image");
@@ -360,14 +301,7 @@ export default function Restaurant(): React.ReactElement {
         try {
           const fd = new FormData();
           fd.append("menuImage", menuImageData.menuImage);
-          const res = await fetch("http://127.0.0.1:8001/api/menu-images/", {
-            method: "POST",
-            body: fd,
-          });
-          if (!res.ok) {
-            allSuccess = false;
-            errorMessages.push("Failed to upload menu image");
-          }
+          await uploadMenuImage(fd);
         } catch (err) {
           allSuccess = false;
           errorMessages.push("Error uploading menu image");
@@ -380,14 +314,7 @@ export default function Restaurant(): React.ReactElement {
           galleryImageData.galleryImages.forEach((file, i) =>
             fd.append(`galleryImage_${i}`, file)
           );
-          const res = await fetch("http://127.0.0.1:8001/api/gallery-images/", {
-            method: "POST",
-            body: fd,
-          });
-          if (!res.ok) {
-            allSuccess = false;
-            errorMessages.push("Failed to upload gallery images");
-          }
+          await uploadGalleryImage(fd);
         } catch (err) {
           allSuccess = false;
           errorMessages.push("Error uploading gallery images");
@@ -400,14 +327,7 @@ export default function Restaurant(): React.ReactElement {
           otherFilesData.otherFiles.forEach((file, i) =>
             fd.append(`otherFile_${i}`, file)
           );
-          const res = await fetch("http://127.0.0.1:8001/api/other-files/", {
-            method: "POST",
-            body: fd,
-          });
-          if (!res.ok) {
-            allSuccess = false;
-            errorMessages.push("Failed to upload other files");
-          }
+          await uploadOtherFile(fd);
         } catch (err) {
           allSuccess = false;
           errorMessages.push("Error uploading other files");

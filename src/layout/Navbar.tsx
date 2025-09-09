@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "../App.css";
 import profileImg from "../assets/bc9fd4bd-de9b-4555-976c-8360576c6708.jpg";
 import "./Navbar.css";
 import LoginModal from "../components/LoginModal";
+import LogoutButton from "../components/LogoutButton";
+import { isLoggedIn, getCurrentUser } from "../services/Login";
 // Inline SVG icons to avoid relying on FontAwesome packages
 const BellIcon = ({
   className = "",
@@ -84,13 +86,48 @@ const ProfileIcon = ({
 
 function Navbar() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [userLoggedIn, setUserLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Check auth status on component mount and when login state changes
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      setUserLoggedIn(isLoggedIn());
+      setCurrentUser(getCurrentUser());
+    };
+
+    checkAuthStatus();
+
+    // Add event listener for storage changes (in case user logs in/out in another tab)
+    const handleStorageChange = () => {
+      checkAuthStatus();
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   const handleProfileClick = () => {
-    setIsLoginModalOpen(true);
+    if (userLoggedIn) {
+      // If logged in, show user info (you can add a dropdown here)
+      console.log("User info:", currentUser);
+    } else {
+      // If not logged in, open login modal
+      setIsLoginModalOpen(true);
+    }
   };
 
   const handleLoginSuccess = () => {
     console.log("User logged in successfully");
+    setUserLoggedIn(true);
+    setCurrentUser(getCurrentUser());
+    setIsLoginModalOpen(false);
+  };
+
+  const handleLogoutSuccess = () => {
+    console.log("User logged out successfully");
+    setUserLoggedIn(false);
+    setCurrentUser(null);
   };
 
   return (
@@ -127,6 +164,18 @@ function Navbar() {
           <div onClick={handleProfileClick} style={{ cursor: "pointer" }}>
             <ProfileIcon className="icon" />
           </div>
+
+          {/* Show logout button only when user is logged in */}
+          {userLoggedIn && (
+            <LogoutButton onLogoutSuccess={handleLogoutSuccess} />
+          )}
+
+          {/* Show user info when logged in */}
+          {userLoggedIn && currentUser && (
+            <span className="text-white ms-2" style={{ fontSize: "14px" }}>
+              Welcome, {currentUser.username}!
+            </span>
+          )}
         </div>
       </nav>
 

@@ -35,6 +35,34 @@ export interface RefreshResponse {
 
 let authState: AuthState | null = null;
 
+// Initialize auth state from localStorage on app start
+function initializeAuth(): void {
+  try {
+    const storedAuth = localStorage.getItem("authState");
+    if (storedAuth) {
+      authState = JSON.parse(storedAuth);
+      console.log("✅ Auth state loaded from localStorage");
+    }
+  } catch (error) {
+    console.warn("Failed to load auth from localStorage:", error);
+    localStorage.removeItem("authState");
+  }
+}
+
+// Save auth state to localStorage
+function saveAuthState(auth: AuthState | null): void {
+  if (auth) {
+    localStorage.setItem("authState", JSON.stringify(auth));
+    console.log("💾 Auth state saved to localStorage");
+  } else {
+    localStorage.removeItem("authState");
+    console.log("🗑️ Auth state removed from localStorage");
+  }
+}
+
+// Initialize on module load
+initializeAuth();
+
 export const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true, // send/receive httpOnly refresh cookie
@@ -52,6 +80,21 @@ function parseError(err: any): string {
 
 export function getAuthState(): AuthState | null {
   return authState;
+}
+
+// Check if user is logged in
+export function isLoggedIn(): boolean {
+  return !!(authState && authState.access_token);
+}
+
+// Get current access token
+export function getAccessToken(): string | null {
+  return authState?.access_token || null;
+}
+
+// Get current user info
+export function getCurrentUser(): TenantInfo | null {
+  return authState?.tenant || null;
 }
 
 function setAuthFromRefresh(data: RefreshResponse) {
@@ -78,15 +121,23 @@ function setAuthFromRefresh(data: RefreshResponse) {
     if (data.permissions) authState.permissions = data.permissions;
     if (data.tenant) authState.tenant = data.tenant;
   }
+
+  // Save updated auth state to localStorage
+  saveAuthState(authState);
   return true;
 }
 
 // ---------------- Interceptors ----------------
 api.interceptors.request.use((config) => {
   const token = authState?.access_token;
+  console.log(`🌐 API Call: ${config.method?.toUpperCase()} ${config.url}`);
+
   if (token) {
     config.headers = config.headers ?? {};
     (config.headers as any).Authorization = `Bearer ${token}`;
+    console.log("🔑 Token added to request");
+  } else {
+    console.log("⚠️ No token available for request");
   }
   return config;
 });
@@ -142,6 +193,7 @@ export async function getToken(
   clientUsername?: string
 ): Promise<AuthState | null> {
   try {
+    console.log("🔐 Starting login process...");
     const payload: Record<string, any> = { username, password };
     if (clientUsername?.trim()) {
       payload.client_username = clientUsername.trim();
@@ -152,6 +204,7 @@ export async function getToken(
       withCredentials: true,
     });
 
+    console.log("✅ Login successful!");
     localStorage.setItem("permissions", JSON.stringify(data.permissions || {}));
 
     authState = {
@@ -161,6 +214,10 @@ export async function getToken(
       permissions: data.permissions || {},
       tenant: data.tenant,
     };
+
+    // Save to localStorage
+    saveAuthState(authState);
+    console.log("🎉 User logged in and token saved!");
 
     return authState;
   } catch (err: any) {
@@ -229,14 +286,19 @@ export async function bootstrapAuth(): Promise<boolean> {
 
 // ---------------- Logout ----------------
 export function logoutLocal() {
+  console.log("🚪 Logging out locally...");
   authState = null;
   localStorage.removeItem("permissions");
+  localStorage.removeItem("authState");
   sessionStorage.removeItem("client_username");
+  console.log("✅ Local data cleared");
 }
 
 export async function logout(): Promise<void> {
   try {
+    console.log("🚪 Logging out from server...");
     await api.post("/api/logout/", {}, { withCredentials: true });
+    console.log("✅ Server logout successful");
   } catch (err) {
     console.warn("⚠️ Backend logout failed, clearing local anyway:", err);
   }
@@ -244,6 +306,27 @@ export async function logout(): Promise<void> {
   logoutLocal();
   document.cookie =
     "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  console.log("🎉 Logout complete!");
+}
+
+// Test function to verify authentication is working
+export async function testAuthenticatedCall(): Promise<any> {
+  try {
+    console.log("🧪 Testing authenticated API call...");
+    console.log("Current auth state:", {
+      isLoggedIn: isLoggedIn(),
+      hasToken: !!getAccessToken(),
+      user: getCurrentUser()?.username,
+    });
+
+    // Try calling a protected endpoint (replace with your actual endpoint)
+    const response = await api.get("/api/restaurants/"); // Example endpoint
+    console.log("✅ Authenticated API call successful!");
+    return response.data;
+  } catch (error) {
+    console.error("❌ Authenticated API call failed:", error);
+    throw error;
+  }
 }
 
 // Example of using the generic response type
