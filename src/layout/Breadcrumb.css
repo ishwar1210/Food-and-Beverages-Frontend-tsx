@@ -1,0 +1,45 @@
+/* Breadcrumb Navigation Styles */
+
+.breadcrumb-container {
+  background-color: #f8f9fa;
+  padding: 8px 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.breadcrumb-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 60px ;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6c757d;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.breadcrumb-item:hover {
+  color: #495057;
+}
+
+.breadcrumb-item.active {
+  color: #495057;
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: #adb5bd;
+  font-size: 12px;
+}
+
+.breadcrumb-item svg {
+  color: #6c757d;
+}
+
+.breadcrumb-item.active svg {
+  color: #495057;
+}

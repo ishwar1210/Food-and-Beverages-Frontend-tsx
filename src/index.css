@@ -1,0 +1,19 @@
+/* Global reset to remove default white spaces at the sides */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure page background is neutral so the navbar sits flush to the edges */
+body {
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

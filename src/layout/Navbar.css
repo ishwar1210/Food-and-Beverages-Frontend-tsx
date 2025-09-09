@@ -1,0 +1,140 @@
+.custom-navbar {
+  background-color: #102a54; /* dark blue */
+  border-bottom-left-radius: 40px;
+  border-bottom-right-radius: 40px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  margin: 0;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.custom-navbar .d-flex {
+  display: flex;
+  align-items: center;
+}
+
+.custom-navbar img.rounded-circle {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 12px;
+  background: #fff;
+}
+
+.custom-navbar .text-white {
+  color: #ffffff;
+}
+
+.custom-navbar .text-white span,
+.custom-navbar .text-white {
+  display: inline-block;
+}
+
+.custom-navbar .ms-auto {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  color: #ffffff;
+  opacity: 0.95;
+  cursor: pointer;
+  transition: transform 120ms ease, color 200ms ease, opacity 200ms ease;
+}
+
+.icon:hover {
+  color: #f1c40f; /* hover highlight */
+  transform: translateY(-1px) scale(1.05);
+  opacity: 1;
+}
+
+/* Slight space adjustments for icons so they sit at the far right like the screenshot */
+.custom-navbar .ms-auto .icon:first-child {
+  margin-right: 6px;
+}
+
+/* Make navbar content readable on smaller screens */
+@media (max-width: 768px) {
+  .custom-navbar {
+    padding: 10px 14px;
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+  }
+
+  .custom-navbar img.rounded-circle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .custom-navbar .text-white {
+    font-size: 1.2rem;
+  }
+}
+
+/* When using bootstrap utilities they may add spacing classes; ensure alignment still looks correct */
+.me-2 {
+  margin-right: 0.5rem !important;
+}
+
+.navbar-dark .text-white {
+  color: #ffffff;
+}
+.custom-navbar {
+  background-color: #102a54 !important; /* dark blue background */
+  /* height: 60px; */
+  /* border-radius: 0 0 15px 15px; rounded bottom edges */
+}
+
+.icon {
+  font-size: 18px;
+  color: white;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.icon:hover {
+  color: #f1c40f; /* hover effect */
+}
+/* Navbar styles for curved bottom and icon adjustments */
+.custom-navbar {
+  border-bottom-left-radius: 40px;
+  border-bottom-right-radius: 40px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 0;
+  border: none;
+}
+
+.custom-navbar .icon {
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  color: #ffffff;
+  opacity: 0.95;
+  position: relative;
+  right: 30px;
+}
+
+.custom-navbar .icon:hover {
+  opacity: 1;
+}
+
+.custom-navbar img.rounded-circle {
+  object-fit: cover;
+}

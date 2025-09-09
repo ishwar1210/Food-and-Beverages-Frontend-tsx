@@ -1,0 +1,63 @@
+/* Restaurant Options Navigation Styles */
+
+.resto-options-container {
+  background-color: #f8f9fa;
+  padding: 0;
+}
+
+.resto-nav {
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0;
+  padding-left: 40px;
+}
+
+.resto-nav-wrapper {
+  display: flex;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 0 20px;
+  gap: 50px;
+  align-items: center;
+}
+
+.resto-nav-item {
+  padding: 12px 20px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  font-weight: 500;
+  min-width: fit-content;
+  transition: all 0.3s ease;
+}
+
+.resto-nav-item.active {
+  border-bottom: 2px solid #007bff;
+  font-weight: 600;
+  font-weight: 500;
+  color: #666;
+}
+
+.resto-nav-item:hover:not(.active) {
+  color: #007bff;
+  border-bottom-color: #007bff;
+}
+
+/* Scrollbar styling for better UX */
+.resto-nav-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.resto-nav-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.resto-nav-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.resto-nav-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
