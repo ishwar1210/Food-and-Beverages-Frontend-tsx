@@ -35,6 +35,10 @@ type FormDataShape = {
   pincode: string;
   aboutRestaurant: string;
   cuisines: string | number;
+  drinkAlcohol: string;
+  wheelchairAccessible: string;
+  cashOnDelivery: string;
+  pureVeg: string;
 };
 
 type ScheduleDataShape = {
@@ -71,7 +75,11 @@ export default function Restaurant(): React.ReactElement {
     city: "",
     pincode: "",
     aboutRestaurant: "",
-    cuisines: "",
+    cuisines: "", 
+    drinkAlcohol: "",
+    wheelchairAccessible: "",
+    cashOnDelivery: "",
+    pureVeg: "",
   });
 
   const [scheduleData, setScheduleData] = useState<ScheduleDataShape>({
@@ -576,27 +584,29 @@ export default function Restaurant(): React.ReactElement {
                               <option disabled>No cuisines available</option>
                             )}
                       </select>
-                      <div
-                        style={{
-                          fontSize: "10px",
-                          color: "#666",
-                          marginTop: "5px",
-                        }}
-                      >
-                        Debug: {cuisines.length} cuisines loaded, Loading:{" "}
-                        {loadingCuisines.toString()}
-                      </div>
                     </div>
                     <div className="form-group">
                       <label>Drink Alcohol*</label>
-                      <select>
-                        <option>Select</option>
+                      <select
+                        name="drinkAlcohol"
+                        value={formData.drinkAlcohol}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">Select</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
                       </select>
                     </div>
                     <div className="form-group">
                       <label>Wheelchair Accessible*</label>
-                      <select>
-                        <option>Select</option>
+                      <select
+                        name="wheelchairAccessible"
+                        value={formData.wheelchairAccessible}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">Select</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
                       </select>
                     </div>
                   </div>
@@ -604,14 +614,26 @@ export default function Restaurant(): React.ReactElement {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Cash On Delivery*</label>
-                      <select>
-                        <option>Select</option>
+                      <select
+                        name="cashOnDelivery"
+                        value={formData.cashOnDelivery}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">Select</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
                       </select>
                     </div>
                     <div className="form-group">
                       <label>Pure Veg*</label>
-                      <select>
-                        <option>Select</option>
+                      <select
+                        name="pureVeg"
+                        value={formData.pureVeg}
+                        onChange={handleInputChange}
+                      >
+                        <option value="">Select</option>
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
                       </select>
                     </div>
                     <div className="form-group">
