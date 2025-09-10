@@ -13,6 +13,7 @@ import {
   uploadMenuImage,
   uploadGalleryImage,
   uploadOtherFile,
+  deleteRestaurant,
 } from "../api/endpoints";
 import "./Addestaurant.css";
 
@@ -115,7 +116,7 @@ export default function Restaurant(): React.ReactElement {
   });
 
   const [blockedDaysData, setBlockedDaysData] = useState({
-    orderBlocked: true,
+    orderBlocked: false, // default unchecked
     bookingBlocked: false,
     startDate: "",
     endDate: "",
@@ -554,6 +555,7 @@ export default function Restaurant(): React.ReactElement {
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [loadingRestaurants, setLoadingRestaurants] = useState(false);
   const [restaurantsError, setRestaurantsError] = useState<string | null>(null);
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (showAddForm) return; // skip while form open
@@ -571,6 +573,24 @@ export default function Restaurant(): React.ReactElement {
     };
     load();
   }, [showAddForm]);
+
+  const handleDeleteRestaurant = async (id?: number) => {
+    if (!id) return;
+    if (!window.confirm("Delete this restaurant?")) return;
+    setDeletingIds((prev) => new Set(prev).add(id));
+    try {
+      await deleteRestaurant(id);
+      setRestaurants((prev) => prev.filter((r) => r.id !== id));
+    } catch (e) {
+      alert("Failed to delete");
+    } finally {
+      setDeletingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
 
   // Small inline SVG icon components
   const SearchIcon = ({ size = 16 }: { size?: number }) => (
@@ -1486,9 +1506,15 @@ export default function Restaurant(): React.ReactElement {
                       <button
                         className="action-btn delete-btn"
                         title="Delete"
-                        onClick={() => alert(`Delete ${name}`)}
+                        onClick={() => handleDeleteRestaurant(r.id)}
+                        disabled={deletingIds.has(r.id)}
+                        style={
+                          deletingIds.has(r.id)
+                            ? { opacity: 0.5, cursor: "not-allowed" }
+                            : undefined
+                        }
                       >
-                        <DeleteIcon />
+                        {deletingIds.has(r.id) ? "..." : <DeleteIcon />}
                       </button>
                       <button
                         className="action-btn view-btn"
