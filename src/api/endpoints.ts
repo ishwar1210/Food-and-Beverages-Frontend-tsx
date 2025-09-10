@@ -2,6 +2,7 @@
 // Uses centralized axios instances from axiosInstance.ts
 
 import { FandBInstance, unwrapList } from "./axiosInstance";
+import axios from "axios";
 
 // Generic listing helper (auto unwrap results or array)
 async function list<T = any>(
@@ -24,8 +25,27 @@ async function create<T = any>(
   payload: any,
   config?: any
 ): Promise<T> {
-  const { data } = await FandBInstance.post(url, payload, config);
-  return data as T;
+  try {
+    const { data } = await FandBInstance.post(url, payload, config);
+    return data as T;
+  } catch (err: any) {
+    if (axios.isAxiosError(err)) {
+      // eslint-disable-next-line no-console
+      console.error(
+        "API CREATE ERROR",
+        url,
+        err.response?.status,
+        err.response?.data
+      );
+      throw (
+        err.response?.data || {
+          status: err.response?.status,
+          error: "Unknown error",
+        }
+      );
+    }
+    throw err;
+  }
 }
 async function update<T = any>(
   url: string,

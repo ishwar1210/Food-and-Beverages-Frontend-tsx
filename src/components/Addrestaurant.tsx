@@ -25,6 +25,9 @@ type Cuisine = {
 type FormDataShape = {
   restaurantName: string;
   mobileNumber: string;
+  alternativeNumber: string;
+  landlineNumber: string;
+  deliveryTime: string;
   ownerName: string;
   emailAddress: string;
   website: string;
@@ -39,6 +42,9 @@ type FormDataShape = {
   wheelchairAccessible: string;
   cashOnDelivery: string;
   pureVeg: string;
+  costForTwo: string;
+  termsAndConditions: string;
+  closingMessage: string;
 };
 
 type ScheduleDataShape = {
@@ -66,6 +72,9 @@ export default function Restaurant(): React.ReactElement {
   const [formData, setFormData] = useState<FormDataShape>({
     restaurantName: "",
     mobileNumber: "",
+    alternativeNumber: "",
+    landlineNumber: "",
+    deliveryTime: "",
     ownerName: "",
     emailAddress: "",
     website: "",
@@ -75,11 +84,14 @@ export default function Restaurant(): React.ReactElement {
     city: "",
     pincode: "",
     aboutRestaurant: "",
-    cuisines: "", 
+    cuisines: "",
     drinkAlcohol: "",
     wheelchairAccessible: "",
     cashOnDelivery: "",
     pureVeg: "",
+    costForTwo: "",
+    termsAndConditions: "",
+    closingMessage: "",
   });
 
   const [scheduleData, setScheduleData] = useState<ScheduleDataShape>({
@@ -253,9 +265,37 @@ export default function Restaurant(): React.ReactElement {
     const errorMessages: string[] = [];
 
     try {
+      // 1. Build restaurant payload mapping to backend model
+      const restaurantPayload: any = {
+        restaurant_name: formData.restaurantName,
+        address: formData.address,
+        number: formData.mobileNumber,
+        alternative_number: formData.alternativeNumber || formData.mobileNumber,
+        landline_number: formData.landlineNumber || formData.mobileNumber,
+        // Backend rejects null for delivery_time; send empty string instead
+        delivery_time:
+          formData.deliveryTime !== "" ? formData.deliveryTime : "",
+        serves_alcohol: formData.drinkAlcohol === "yes",
+        wheelchair_accessible: formData.wheelchairAccessible === "yes",
+        cash_on_delivery: formData.cashOnDelivery === "yes",
+        pure_veg: formData.pureVeg === "yes",
+        cuisines: formData.cuisines ? [Number(formData.cuisines)] : [],
+        terms_and_conditions: formData.termsAndConditions || "",
+        closing_message: formData.closingMessage || "",
+        cost_for_two: formData.costForTwo ? parseFloat(formData.costForTwo) : 0,
+      };
+      let restaurantId: number | null = null;
+      let scheduleId: number | null = null;
+
       // Basic restaurant details
       try {
-        await createRestaurant(formData);
+        const created = await createRestaurant(restaurantPayload);
+        restaurantId =
+          created?.id ??
+          created?.restaurant?.id ??
+          created?.restaurant_id ??
+          null;
+        if (!restaurantId) throw new Error("No restaurant id in response");
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving restaurant basic details");
@@ -263,7 +303,33 @@ export default function Restaurant(): React.ReactElement {
 
       // Schedule
       try {
-        await createSchedule(scheduleData);
+        if (restaurantId) {
+          const dayCodeMap: Record<string, string> = {
+            monday: "mon",
+            tuesday: "tue",
+            wednesday: "wed",
+            thursday: "thu",
+            friday: "fri",
+            saturday: "sat",
+            sunday: "sun",
+          };
+          const operational_days = Object.entries(scheduleData.operationalDays)
+            .filter(([_, v]) => v)
+            .map(([k]) => dayCodeMap[k]);
+          const schedulePayload: any = {
+            restaurant: restaurantId,
+            operational_days,
+            start_time: scheduleData.startTime || null,
+            end_time: scheduleData.endTime || null,
+            break_start_time: scheduleData.bookingStartTime || null,
+            break_end_time: scheduleData.bookingEndTime || null,
+            booking_allowed: scheduleData.bookingAllowed,
+            order_allowed: scheduleData.orderAllowed,
+            last_booking_time: scheduleData.lastOrderTime || null,
+          };
+          const sched = await createSchedule(schedulePayload);
+          scheduleId = sched?.id ?? sched?.schedule?.id ?? null;
+        }
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving restaurant schedule");
@@ -271,7 +337,31 @@ export default function Restaurant(): React.ReactElement {
 
       // Blocked days
       try {
-        await createBlockedDay(blockedDaysData);
+        // Model expects separate entries with block_type and schedule reference
+        if (scheduleId) {
+          const blockedPromises: Promise<any>[] = [];
+          if (blockedDaysData.orderBlocked) {
+            blockedPromises.push(
+              createBlockedDay({
+                restaurant: scheduleId,
+                block_type: "order",
+                start_date: blockedDaysData.startDate || null,
+                end_date: blockedDaysData.endDate || null,
+              })
+            );
+          }
+          if (blockedDaysData.bookingBlocked) {
+            blockedPromises.push(
+              createBlockedDay({
+                restaurant: scheduleId,
+                block_type: "booking",
+                start_date: blockedDaysData.startDate || null,
+                end_date: blockedDaysData.endDate || null,
+              })
+            );
+          }
+          if (blockedPromises.length) await Promise.all(blockedPromises);
+        }
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving blocked days");
@@ -279,15 +369,99 @@ export default function Restaurant(): React.ReactElement {
 
       // Table bookings
       try {
-        await createTableBooking(tableBookingsData);
+        if (restaurantId) {
+          const toTime = (raw: string): string | null => {
+            if (!raw) return null;
+            const trimmed = raw.trim();
+            // Only digits -> treat as total minutes (support >59)
+            if (/^\d+$/.test(trimmed)) {
+              let total = parseInt(trimmed, 10);
+              if (!Number.isFinite(total) || total < 0) return null;
+              const hours = Math.floor(total / 60);
+              const mins = total % 60;
+              const hh = String(hours).padStart(2, "0");
+              const mm = String(mins).padStart(2, "0");
+              return `${hh}:${mm}:00`;
+            }
+            // Compact HHMM (e.g. 1305 -> 13:05)
+            if (/^\d{3,4}$/.test(trimmed)) {
+              const len = trimmed.length;
+              const hh = trimmed.slice(0, len - 2);
+              const mm = trimmed.slice(len - 2);
+              if (parseInt(mm, 10) > 59) return null;
+              return `${hh.padStart(2, "0")}:${mm}:00`;
+            }
+            // HH:MM
+            if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+              const [h, m] = trimmed.split(":");
+              if (parseInt(m, 10) > 59) return null;
+              return `${h.padStart(2, "0")}:${m}:00`;
+            }
+            // HH:MM:SS
+            if (/^\d{1,2}:\d{2}:\d{2}$/.test(trimmed)) {
+              const parts = trimmed.split(":");
+              if (parseInt(parts[1], 10) > 59 || parseInt(parts[2], 10) > 59)
+                return null;
+              return (
+                parts[0].padStart(2, "0") + ":" + parts[1] + ":" + parts[2]
+              );
+            }
+            return null;
+          };
+          const toNum = (v: string, def: number) => {
+            const p = parseInt(v, 10);
+            return Number.isFinite(p) ? p : def;
+          };
+          const minP = toNum(tableBookingsData.minimumPerson, 1);
+          let maxP = toNum(tableBookingsData.maximumPerson, minP);
+          if (maxP < minP) maxP = minP;
+          const tablePayload: any = {
+            restaurant: restaurantId,
+            no_of_tables: toNum(tableBookingsData.numberOfTables, 0),
+            min_people: minP,
+            max_people: maxP,
+            can_cancel_before: toTime(tableBookingsData.canCancelBefore),
+            booking_not_available_text:
+              tableBookingsData.bookingNotAvailableText || "",
+            no_of_floors: toNum(tableBookingsData.noOfFloors, 1),
+          };
+          // Debug log for inspection
+          // eslint-disable-next-line no-console
+          console.log("TableBooking payload", tablePayload, {
+            rawCanCancel: tableBookingsData.canCancelBefore,
+            converted: toTime(tableBookingsData.canCancelBefore),
+          });
+          await createTableBooking(tablePayload);
+        }
       } catch (err) {
         allSuccess = false;
-        errorMessages.push("Error saving table bookings");
+        // Try to surface backend error details if present
+        const detail =
+          (err as any)?.detail || (err as any)?.message || JSON.stringify(err);
+        errorMessages.push("Error saving table bookings: " + detail);
       }
 
       // Order config
       try {
-        await createOrderConfig(orderConfigData);
+        if (restaurantId) {
+          const orderCfg: any = {
+            restaurant: restaurantId,
+            GST_percentage: orderConfigData.gstPercentage
+              ? parseFloat(orderConfigData.gstPercentage)
+              : 0,
+            delivery_charge: orderConfigData.deliveryCharge
+              ? parseFloat(orderConfigData.deliveryCharge)
+              : 0,
+            service_charge: orderConfigData.serviceChargePercentage
+              ? parseFloat(orderConfigData.serviceChargePercentage)
+              : 0,
+            minimum_order: orderConfigData.minimumOrder
+              ? parseInt(orderConfigData.minimumOrder)
+              : 0,
+            order_not_available_text: orderConfigData.orderNotAllowedText || "",
+          };
+          await createOrderConfig(orderCfg);
+        }
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving order configure");
@@ -297,8 +471,9 @@ export default function Restaurant(): React.ReactElement {
       if (coverImageData.coverImage) {
         try {
           const fd = new FormData();
-          fd.append("coverImage", coverImageData.coverImage);
-          await uploadCoverImage(fd);
+          if (restaurantId) fd.append("restaurant", String(restaurantId));
+          fd.append("image", coverImageData.coverImage);
+          await uploadCoverImage(fd); // endpoint posts formdata
         } catch (err) {
           allSuccess = false;
           errorMessages.push("Error uploading cover image");
@@ -308,7 +483,8 @@ export default function Restaurant(): React.ReactElement {
       if (menuImageData.menuImage) {
         try {
           const fd = new FormData();
-          fd.append("menuImage", menuImageData.menuImage);
+          if (restaurantId) fd.append("restaurant", String(restaurantId));
+          fd.append("image", menuImageData.menuImage);
           await uploadMenuImage(fd);
         } catch (err) {
           allSuccess = false;
@@ -319,9 +495,10 @@ export default function Restaurant(): React.ReactElement {
       if (galleryImageData.galleryImages.length > 0) {
         try {
           const fd = new FormData();
-          galleryImageData.galleryImages.forEach((file, i) =>
-            fd.append(`galleryImage_${i}`, file)
-          );
+          galleryImageData.galleryImages.forEach((file) => {
+            fd.append("image", file);
+          });
+          if (restaurantId) fd.append("restaurant", String(restaurantId));
           await uploadGalleryImage(fd);
         } catch (err) {
           allSuccess = false;
@@ -332,9 +509,10 @@ export default function Restaurant(): React.ReactElement {
       if (otherFilesData.otherFiles.length > 0) {
         try {
           const fd = new FormData();
-          otherFilesData.otherFiles.forEach((file, i) =>
-            fd.append(`otherFile_${i}`, file)
-          );
+          otherFilesData.otherFiles.forEach((file) => {
+            fd.append("file", file);
+          });
+          if (restaurantId) fd.append("restaurant", String(restaurantId));
           await uploadOtherFile(fd);
         } catch (err) {
           allSuccess = false;
@@ -534,7 +712,13 @@ export default function Restaurant(): React.ReactElement {
                     </div>
                     <div className="form-group">
                       <label>Cost For Two*</label>
-                      <input type="text" placeholder="Cost For Two" />
+                      <input
+                        type="text"
+                        name="costForTwo"
+                        value={formData.costForTwo}
+                        onChange={handleInputChange}
+                        placeholder="Cost For Two"
+                      />
                     </div>
                     <div className="form-group">
                       <label>Mobile Number*</label>
@@ -551,15 +735,33 @@ export default function Restaurant(): React.ReactElement {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Another Mobile Number*</label>
-                      <input type="text" placeholder="Enter Number" />
+                      <input
+                        type="text"
+                        name="alternativeNumber"
+                        value={formData.alternativeNumber}
+                        onChange={handleInputChange}
+                        placeholder="Enter Number"
+                      />
                     </div>
                     <div className="form-group">
                       <label>Landline Number</label>
-                      <input type="text" placeholder="Enter Number" />
+                      <input
+                        type="text"
+                        name="landlineNumber"
+                        value={formData.landlineNumber}
+                        onChange={handleInputChange}
+                        placeholder="Enter Number"
+                      />
                     </div>
                     <div className="form-group">
                       <label>Delivery Time</label>
-                      <input type="text" placeholder="Mins" />
+                      <input
+                        type="text"
+                        name="deliveryTime"
+                        value={formData.deliveryTime}
+                        onChange={handleInputChange}
+                        placeholder="e.g. 30 mins"
+                      />
                     </div>
                   </div>
 
@@ -650,11 +852,23 @@ export default function Restaurant(): React.ReactElement {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Terms & Conditions</label>
-                      <textarea rows={3}></textarea>
+                      <textarea
+                        rows={3}
+                        name="termsAndConditions"
+                        value={formData.termsAndConditions}
+                        onChange={handleInputChange}
+                        placeholder="Enter terms..."
+                      ></textarea>
                     </div>
                     <div className="form-group">
                       <label>Closing Message</label>
-                      <textarea rows={3}></textarea>
+                      <textarea
+                        rows={3}
+                        name="closingMessage"
+                        value={formData.closingMessage}
+                        onChange={handleInputChange}
+                        placeholder="Enter closing message..."
+                      ></textarea>
                     </div>
                   </div>
                 </div>
@@ -970,8 +1184,11 @@ export default function Restaurant(): React.ReactElement {
                         name="canCancelBefore"
                         value={tableBookingsData.canCancelBefore}
                         onChange={handleTableBookingsChange}
-                        placeholder="In Mins"
+                        placeholder="e.g. 15 or 00:15 or 00:15:00"
                       />
+                      <small style={{ fontSize: "10px", color: "#666" }}>
+                        Minutes (15) or HH:MM accepted. Saved as HH:MM:SS.
+                      </small>
                     </div>
                     <div className="form-group">
                       <label>Booking Not Available Text</label>
