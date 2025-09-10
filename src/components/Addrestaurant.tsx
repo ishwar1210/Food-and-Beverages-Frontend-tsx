@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from "react";
 // Use centralized API helpers instead of hardcoded fetch calls
 import {
   listCuisines,
+  listRestaurants,
   createRestaurant,
   createSchedule,
   createBlockedDay,
@@ -547,44 +548,29 @@ export default function Restaurant(): React.ReactElement {
     });
   };
 
-  const orderData = [
-    {
-      orderId: "001",
-      restaurant: "Pizza Palace",
-      createdOn: "2024-01-15",
-      createdBy: "Admin",
-      flat: "A-101",
-      status: "Active",
-      amountPaid: "₹1,250",
-      noOfItems: "3",
-      paymentStatus: "Paid",
-      additionalRequest: "Extra cheese",
-    },
-    {
-      orderId: "002",
-      restaurant: "Burger King",
-      createdOn: "2024-01-16",
-      createdBy: "User1",
-      flat: "B-205",
-      status: "Pending",
-      amountPaid: "₹850",
-      noOfItems: "2",
-      paymentStatus: "Pending",
-      additionalRequest: "No onions",
-    },
-    {
-      orderId: "003",
-      restaurant: "Subway",
-      createdOn: "2024-01-17",
-      createdBy: "User2",
-      flat: "C-301",
-      status: "Delivered",
-      amountPaid: "₹450",
-      noOfItems: "1",
-      paymentStatus: "Paid",
-      additionalRequest: "Extra sauce",
-    },
-  ];
+  // orderData removed; table now powered by restaurants from API.
+
+  // Restaurants fetched from API for listing
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [loadingRestaurants, setLoadingRestaurants] = useState(false);
+  const [restaurantsError, setRestaurantsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showAddForm) return; // skip while form open
+    const load = async () => {
+      setLoadingRestaurants(true);
+      setRestaurantsError(null);
+      try {
+        const data = await listRestaurants();
+        setRestaurants(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setRestaurantsError("Failed to load restaurants");
+      } finally {
+        setLoadingRestaurants(false);
+      }
+    };
+    load();
+  }, [showAddForm]);
 
   // Small inline SVG icon components
   const SearchIcon = ({ size = 16 }: { size?: number }) => (
@@ -1186,9 +1172,6 @@ export default function Restaurant(): React.ReactElement {
                         onChange={handleTableBookingsChange}
                         placeholder="e.g. 15 or 00:15 or 00:15:00"
                       />
-                      <small style={{ fontSize: "10px", color: "#666" }}>
-                        Minutes (15) or HH:MM accepted. Saved as HH:MM:SS.
-                      </small>
                     </div>
                     <div className="form-group">
                       <label>Booking Not Available Text</label>
@@ -1434,7 +1417,11 @@ export default function Restaurant(): React.ReactElement {
           Add Restaurant
         </button>
         <div className="pagination-info">
-          1-{orderData.length} of {orderData.length}
+          {loadingRestaurants
+            ? "Loading..."
+            : restaurants.length > 0
+            ? `1-${restaurants.length} of ${restaurants.length}`
+            : "0-0 of 0"}
         </div>
         <div className="pagination-controls">
           <button className="pagination-btn">‹</button>
@@ -1460,45 +1447,71 @@ export default function Restaurant(): React.ReactElement {
             </tr>
           </thead>
           <tbody>
-            {orderData.map((order) => (
-              <tr key={order.orderId}>
-                <td>
-                  <div className="action-icons">
-                    <button
-                      className="action-btn edit-btn"
-                      title="Edit"
-                      onClick={() => alert(`Edit order ${order.orderId}`)}
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      className="action-btn delete-btn"
-                      title="Delete"
-                      onClick={() => alert(`Delete order ${order.orderId}`)}
-                    >
-                      <DeleteIcon />
-                    </button>
-                    <button
-                      className="action-btn view-btn"
-                      title="View"
-                      onClick={() => alert(`View order ${order.orderId}`)}
-                    >
-                      <ViewIcon />
-                    </button>
-                  </div>
+            {loadingRestaurants && (
+              <tr>
+                <td colSpan={11} style={{ textAlign: "center" }}>
+                  Loading...
                 </td>
-                <td>{order.orderId}</td>
-                <td>{order.restaurant}</td>
-                <td>{order.createdOn}</td>
-                <td>{order.createdBy}</td>
-                <td>{order.flat}</td>
-                <td>{order.status}</td>
-                <td>{order.amountPaid}</td>
-                <td>{order.noOfItems}</td>
-                <td>{order.paymentStatus}</td>
-                <td>{order.additionalRequest}</td>
               </tr>
-            ))}
+            )}
+            {restaurantsError && !loadingRestaurants && (
+              <tr>
+                <td colSpan={11} style={{ textAlign: "center", color: "red" }}>
+                  {restaurantsError}
+                </td>
+              </tr>
+            )}
+            {!loadingRestaurants &&
+              !restaurantsError &&
+              restaurants.length === 0 && (
+                <tr>
+                  <td colSpan={11} style={{ textAlign: "center" }}>
+                    No restaurants
+                  </td>
+                </tr>
+              )}
+            {restaurants.map((r: any) => {
+              const name = r.restaurant_name || r.name || `Restaurant ${r.id}`;
+              return (
+                <tr key={r.id || name}>
+                  <td>
+                    <div className="action-icons">
+                      <button
+                        className="action-btn edit-btn"
+                        title="Edit"
+                        onClick={() => alert(`Edit ${name}`)}
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        className="action-btn delete-btn"
+                        title="Delete"
+                        onClick={() => alert(`Delete ${name}`)}
+                      >
+                        <DeleteIcon />
+                      </button>
+                      <button
+                        className="action-btn view-btn"
+                        title="View"
+                        onClick={() => alert(`View ${name}`)}
+                      >
+                        <ViewIcon />
+                      </button>
+                    </div>
+                  </td>
+                  <td></td>
+                  <td>{name}</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
