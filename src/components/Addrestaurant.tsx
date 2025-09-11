@@ -16,6 +16,7 @@ import {
   deleteRestaurant,
 } from "../api/endpoints";
 import "./Addestaurant.css";
+import Viewrestaurant from "./Viewrestaurant";
 
 type Cuisine = {
   id?: number | string;
@@ -62,6 +63,9 @@ type ScheduleDataShape = {
 
 export default function Restaurant(): React.ReactElement {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [viewingRestaurantId, setViewingRestaurantId] = useState<number | null>(
+    null
+  );
   const [expandedSections, setExpandedSections] = useState({
     basicDetails: false,
     restaurantDetails: false,
@@ -681,6 +685,16 @@ export default function Restaurant(): React.ReactElement {
       />
     </svg>
   );
+
+  // Show Viewrestaurant component if viewing a restaurant
+  if (viewingRestaurantId) {
+    return (
+      <Viewrestaurant
+        id={viewingRestaurantId}
+        onBack={() => setViewingRestaurantId(null)}
+      />
+    );
+  }
 
   if (showAddForm) {
     return (
@@ -1519,7 +1533,7 @@ export default function Restaurant(): React.ReactElement {
                       <button
                         className="action-btn view-btn"
                         title="View"
-                        onClick={() => alert(`View ${name}`)}
+                        onClick={() => setViewingRestaurantId(r.id)}
                       >
                         <ViewIcon />
                       </button>

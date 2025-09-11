@@ -200,6 +200,8 @@ export const uploadMenuImage = (form: FormData) =>
 export const deleteMenuImage = (id: number) => destroy(`/menu-images/${id}/`);
 
 // ---- Gallery Images ----
+export const listGalleryImages = (params?: any) =>
+  list("/gallery-images/", params);
 export const uploadGalleryImage = (form: FormData) =>
   create("/gallery-images/", form, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -283,6 +285,7 @@ export const FNBEndpoints = {
   deleteCoverImage,
   uploadMenuImage,
   deleteMenuImage,
+  listGalleryImages,
   uploadGalleryImage,
   deleteGalleryImage,
   uploadOtherFile,
