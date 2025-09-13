@@ -123,11 +123,16 @@
 }
 
 /* Action Icons */
-.action-icons {
+.action-icon {
   display: flex;
   gap: 8px;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+/* Ensure action column is aligned to start */
+.restaurant-table td:first-child {
+  text-align: left;
 }
 
 .action-btn {

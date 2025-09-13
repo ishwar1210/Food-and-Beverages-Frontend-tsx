@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useToast } from "./toast/ToastProvider";
 import type { ChangeEvent, FormEvent } from "react";
 // Use centralized API helpers instead of hardcoded fetch calls
 import {
   listCuisines,
   listRestaurants,
   createRestaurant,
-  createSchedule,
+  createRestaurantSchedulesBulk,
   createBlockedDay,
   createTableBooking,
   createOrderConfig,
@@ -307,38 +308,62 @@ export default function Restaurant(): React.ReactElement {
         errorMessages.push("Error saving restaurant basic details");
       }
 
-      // Schedule
+      // Restaurant Schedules (bulk) -> replace legacy /schedules/ endpoint
       try {
         if (restaurantId) {
-          const dayCodeMap: Record<string, string> = {
-            monday: "mon",
-            tuesday: "tue",
-            wednesday: "wed",
-            thursday: "thu",
-            friday: "fri",
-            saturday: "sat",
-            sunday: "sun",
+          // Collect selected days as numeric codes 1=Mon .. 7=Sun
+          const dayNumberMap: Record<string, number> = {
+            monday: 1,
+            tuesday: 2,
+            wednesday: 3,
+            thursday: 4,
+            friday: 5,
+            saturday: 6,
+            sunday: 7,
           };
-          const operational_days = Object.entries(scheduleData.operationalDays)
+          const selectedDayNumbers = Object.entries(
+            scheduleData.operationalDays
+          )
             .filter(([_, v]) => v)
-            .map(([k]) => dayCodeMap[k]);
-          const schedulePayload: any = {
-            restaurant: restaurantId,
-            operational_days,
-            start_time: scheduleData.startTime || null,
-            end_time: scheduleData.endTime || null,
-            break_start_time: scheduleData.bookingStartTime || null,
-            break_end_time: scheduleData.bookingEndTime || null,
-            booking_allowed: scheduleData.bookingAllowed,
-            order_allowed: scheduleData.orderAllowed,
-            last_booking_time: scheduleData.lastOrderTime || null,
-          };
-          const sched = await createSchedule(schedulePayload);
-          scheduleId = sched?.id ?? sched?.schedule?.id ?? null;
+            .map(([k]) => dayNumberMap[k]);
+
+          if (selectedDayNumbers.length) {
+            // Ensure we have required time fields
+            const startTime = scheduleData.startTime || "09:00";
+            const endTime = scheduleData.endTime || "18:00";
+            const lastOrderTime = scheduleData.lastOrderTime || "17:30";
+
+            // Send as single object matching the example format exactly
+            const bulkPayload = {
+              restaurant: restaurantId,
+              days: selectedDayNumbers,
+              operational: true,
+              start_time: startTime,
+              end_time: endTime,
+              break_start_time: scheduleData.bookingStartTime || null,
+              break_end_time: scheduleData.bookingEndTime || null,
+              booking_allowed: scheduleData.bookingAllowed,
+              order_allowed: scheduleData.orderAllowed,
+              last_order_time: lastOrderTime,
+            };
+
+            console.log("Sending bulk payload:", bulkPayload); // Debug log
+            const createdBulk = await createRestaurantSchedulesBulk(
+              bulkPayload
+            );
+            // Handle response - could be single object or array
+            if (Array.isArray(createdBulk) && createdBulk.length) {
+              scheduleId = createdBulk[0]?.id || null;
+            } else if ((createdBulk as any)?.id) {
+              scheduleId = (createdBulk as any).id;
+            } else {
+              console.log("Created bulk response:", createdBulk);
+            }
+          }
         }
       } catch (err) {
         allSuccess = false;
-        errorMessages.push("Error saving restaurant schedule");
+        errorMessages.push("Error saving restaurant schedules (bulk)");
       }
 
       // Blocked days
@@ -578,22 +603,31 @@ export default function Restaurant(): React.ReactElement {
     load();
   }, [showAddForm]);
 
-  const handleDeleteRestaurant = async (id?: number) => {
+  const toast = useToast();
+  const handleDeleteRestaurant = (id?: number) => {
     if (!id) return;
-    if (!window.confirm("Delete this restaurant?")) return;
-    setDeletingIds((prev) => new Set(prev).add(id));
-    try {
-      await deleteRestaurant(id);
-      setRestaurants((prev) => prev.filter((r) => r.id !== id));
-    } catch (e) {
-      alert("Failed to delete");
-    } finally {
-      setDeletingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
+    toast.confirm({
+      title: "Confirm Delete",
+      message: "Are you sure you want to delete this restaurant?",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      onConfirm: async () => {
+        setDeletingIds((prev) => new Set(prev).add(id));
+        try {
+          await deleteRestaurant(id);
+          setRestaurants((prev) => prev.filter((r) => r.id !== id));
+          toast.success("Restaurant deleted");
+        } catch {
+          toast.error("Failed to delete");
+        } finally {
+          setDeletingIds((prev) => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
+      },
+    });
   };
 
   // Small inline SVG icon components
@@ -1059,18 +1093,17 @@ export default function Restaurant(): React.ReactElement {
                       </label>
                     </div>
                     <div className="right-section">
-                      <div
-                        className="form-group single-field"
-                        style={{ position: "relative", left: "85%" }}
-                      >
-                        <label>Last Booking & Order Time</label>
-                        <input
-                          type="time"
-                          name="lastOrderTime"
-                          value={scheduleData.lastOrderTime}
-                          onChange={handleScheduleChange}
-                          style={{ width: "150px" }}
-                        />
+                      <div className="time-fields">
+                        <div className="form-group">
+                          <label>Last Booking & Order Time</label>
+                          <input
+                            type="time"
+                            name="lastOrderTime"
+                            value={scheduleData.lastOrderTime}
+                            onChange={handleScheduleChange}
+                            style={{ width: "150px" }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1467,30 +1500,30 @@ export default function Restaurant(): React.ReactElement {
         <table className="restaurant-table">
           <thead>
             <tr>
-              <th style={{ paddingLeft: "4%" }}>Action</th>
-              <th>Order ID</th>
+              <th>Action</th>
+              {/* <th>Order ID</th> */}
               <th>Restaurant</th>
               <th>Created on</th>
               <th>Created By</th>
-              <th>Flat</th>
+              {/* <th>Flat</th> */}
               <th>Status</th>
-              <th>Amount Paid</th>
-              <th>No. Of Items</th>
-              <th>Payment Status</th>
-              <th>Additional Request</th>
+              {/* <th>Amount Paid</th> */}
+              {/* <th>No. Of Items</th> */}
+              {/* <th>Payment Status</th> */}
+              {/* <th>Additional Request</th> */}
             </tr>
           </thead>
           <tbody>
             {loadingRestaurants && (
               <tr>
-                <td colSpan={11} style={{ textAlign: "center" }}>
+                <td colSpan={4} style={{ textAlign: "center" }}>
                   Loading...
                 </td>
               </tr>
             )}
             {restaurantsError && !loadingRestaurants && (
               <tr>
-                <td colSpan={11} style={{ textAlign: "center", color: "red" }}>
+                <td colSpan={4} style={{ textAlign: "center", color: "red" }}>
                   {restaurantsError}
                 </td>
               </tr>
@@ -1499,7 +1532,7 @@ export default function Restaurant(): React.ReactElement {
               !restaurantsError &&
               restaurants.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: "center" }}>
+                  <td colSpan={4} style={{ textAlign: "center" }}>
                     No restaurants
                   </td>
                 </tr>
@@ -1509,7 +1542,7 @@ export default function Restaurant(): React.ReactElement {
               return (
                 <tr key={r.id || name}>
                   <td>
-                    <div className="action-icons">
+                    <div className="action-icon">
                       <button
                         className="action-btn edit-btn"
                         title="Edit"
@@ -1539,13 +1572,7 @@ export default function Restaurant(): React.ReactElement {
                       </button>
                     </div>
                   </td>
-                  <td></td>
                   <td>{name}</td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
                   <td></td>
                   <td></td>
                   <td></td>

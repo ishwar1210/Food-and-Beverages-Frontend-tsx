@@ -5,6 +5,9 @@ import Breadcrumb from "./layout/Breadcrumb";
 import Resto_options from "./components/Restooptions";
 import SubNavigation from "./components/SubNavigation";
 import Addrestaurant from "./components/Addrestaurant";
+import CategoriesSetup from "./components/CategoriesSetup";
+import SubcategoriesSetup from "./components/SubcategoriesSetup";
+import RestaurantMenu from "./components/Restaurantmenu";
 
 export default function App(): React.ReactElement {
   const [activeMainTab, setActiveMainTab] = useState<number>(0);
@@ -26,23 +29,11 @@ export default function App(): React.ReactElement {
           </div>
         );
       case 3:
-        return (
-          <div style={{ padding: "20px", color: "#666" }}>
-            Categories Setup Content
-          </div>
-        );
+        return <CategoriesSetup />;
       case 4:
-        return (
-          <div style={{ padding: "20px", color: "#666" }}>
-            Sub Categories Setup Content
-          </div>
-        );
+        return <SubcategoriesSetup />;
       case 5:
-        return (
-          <div style={{ padding: "20px", color: "#666" }}>
-            Restaurant Menu Content
-          </div>
-        );
+        return <RestaurantMenu />;
       case 6:
         return (
           <div style={{ padding: "20px", color: "#666" }}>

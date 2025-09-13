@@ -1,0 +1,252 @@
+/* Restaurant Menu Component Styles */
+
+.restaurant-menu-container {
+  background-color: white;
+  padding: 20px;
+  min-height: 400px;
+}
+
+/* Header Section */
+.restaurant-menu-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 12px;
+  background-color: white;
+  min-width: 50px;
+  max-width: 60px;
+}
+
+.search-input {
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #333;
+  background: transparent;
+  width: 100%;
+}
+
+.search-input::placeholder {
+  color: #999;
+}
+
+.add-btn {
+  background-color: #6c7ae0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.add-btn:hover {
+  background-color: #5a68d4;
+}
+
+.form-inputs {
+  display: flex;
+  gap: 15px;
+  flex: 1;
+}
+
+.form-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #6c7ae0;
+}
+
+.pagination-info {
+  margin-left: auto;
+  font-size: 14px;
+  color: #666;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.pagination-btn {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover {
+  background-color: #f8f9fa;
+  border-color: #6c7ae0;
+  color: #6c7ae0;
+}
+
+/* Table Styles */
+.restaurant-menu-table-container {
+  overflow-x: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.restaurant-menu-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 1200px;
+}
+
+.restaurant-menu-table th {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  padding: 12px 8px;
+  text-align: left;
+  border-bottom: 2px solid #e0e0e0;
+  white-space: nowrap;
+}
+
+.restaurant-menu-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid #e0e0e0;
+  color: #333;
+  white-space: nowrap;
+}
+
+.restaurant-menu-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.restaurant-menu-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Ensure action column is aligned to start */
+.restaurant-menu-table td:first-child {
+  text-align: left;
+}
+
+/* Action Icons */
+.action-icons {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background-color: #f5f5f5;
+  transform: scale(1.1);
+}
+
+.edit-btn:hover {
+  background-color: #e3f2fd;
+}
+
+.edit-btn:hover .edit-icon {
+  color: #1976d2;
+}
+
+.delete-btn:hover {
+  background-color: #ffebee;
+}
+
+.delete-btn:hover .delete-icon {
+  color: #d32f2f;
+}
+
+.edit-icon,
+.delete-icon {
+  color: #666;
+  transition: color 0.2s ease;
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+/* Status Styles */
+.status {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.status.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .restaurant-menu-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .form-inputs {
+    flex-direction: column;
+  }
+
+  .search-container {
+    min-width: auto;
+    width: 100%;
+    max-width: none;
+  }
+
+  .pagination-info {
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .restaurant-menu-table {
+    font-size: 12px;
+  }
+
+  .restaurant-menu-table th,
+  .restaurant-menu-table td {
+    padding: 8px 4px;
+  }
+}

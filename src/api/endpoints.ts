@@ -76,12 +76,21 @@ export const updateRestaurant = (id: number, payload: any) =>
   update(`/restaurants/${id}/`, payload);
 export const deleteRestaurant = (id: number) => destroy(`/restaurants/${id}/`);
 
-// ---- Schedules ----
-export const listSchedules = (params?: any) => list("/schedules/", params);
-export const createSchedule = (payload: any) => create("/schedules/", payload);
-export const updateSchedule = (id: number, payload: any) =>
-  update(`/schedules/${id}/`, payload);
-export const deleteSchedule = (id: number) => destroy(`/schedules/${id}/`);
+// ---- (Deprecated) Schedules ----
+// Legacy endpoints replaced by /restaurant-schedules/ & /restaurant-schedules/bulk/
+// Keeping commented for reference; remove completely when backend fully decommissions.
+// export const listSchedules = (params?: any) => list("/schedules/", params);
+// export const createSchedule = (payload: any) => create("/schedules/", payload);
+// export const updateSchedule = (id: number, payload: any) => update(`/schedules/${id}/`, payload);
+// export const deleteSchedule = (id: number) => destroy(`/schedules/${id}/`);
+
+// ---- Restaurant Schedules ----
+export const listRestaurantSchedules = (params?: any) =>
+  list("/restaurant-schedules/", params);
+export const updateRestaurantSchedule = (id: number, payload: any) =>
+  update(`/restaurant-schedules/${id}/`, payload, "patch");
+export const createRestaurantSchedulesBulk = (payload: any) =>
+  create("/restaurant-schedules/bulk/", payload);
 
 // ---- Blocked Days ----
 export const listBlockedDays = (params?: any) => list("/blocked-days/", params);
@@ -193,6 +202,7 @@ export const uploadCoverImage = (form: FormData) =>
 export const deleteCoverImage = (id: number) => destroy(`/cover-images/${id}/`);
 
 // ---- Menu Images ----
+export const listMenuImages = (params?: any) => list("/menu-images/", params);
 export const uploadMenuImage = (form: FormData) =>
   create("/menu-images/", form, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -227,10 +237,9 @@ export const FNBEndpoints = {
   createRestaurant,
   updateRestaurant,
   deleteRestaurant,
-  listSchedules,
-  createSchedule,
-  updateSchedule,
-  deleteSchedule,
+  listRestaurantSchedules,
+  updateRestaurantSchedule,
+  createRestaurantSchedulesBulk,
   listBlockedDays,
   createBlockedDay,
   deleteBlockedDay,
