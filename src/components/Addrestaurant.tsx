@@ -151,9 +151,9 @@ export default function Restaurant(): React.ReactElement {
   });
 
   const [menuImageData, setMenuImageData] = useState<{
-    menuImage: File | null;
+    menuImages: File[];
   }>({
-    menuImage: null,
+    menuImages: [],
   });
 
   const [galleryImageData, setGalleryImageData] = useState<{
@@ -165,6 +165,12 @@ export default function Restaurant(): React.ReactElement {
   const [otherFilesData, setOtherFilesData] = useState<{ otherFiles: File[] }>({
     otherFiles: [],
   });
+
+  // Phone validation errors (10 digit requirement)
+  const [phoneErrors, setPhoneErrors] = useState<{
+    mobileNumber: string;
+    alternativeNumber: string;
+  }>({ mobileNumber: "", alternativeNumber: "" });
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
   const [loadingCuisines, setLoadingCuisines] = useState(true);
@@ -195,6 +201,21 @@ export default function Restaurant(): React.ReactElement {
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target as HTMLInputElement;
+
+    // Enforce 10 digit numeric only for mobile fields
+    if (name === "mobileNumber" || name === "alternativeNumber") {
+      const digits = value.replace(/\D/g, "").slice(0, 10);
+      setFormData((prev) => ({ ...prev, [name]: digits }));
+      setPhoneErrors((prev) => ({
+        ...prev,
+        [name]:
+          digits.length === 10 || digits.length === 0
+            ? ""
+            : "10 digits required",
+      }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -251,12 +272,21 @@ export default function Restaurant(): React.ReactElement {
   };
 
   const handleMenuImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) setMenuImageData({ menuImage: file });
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length) {
+      setMenuImageData((prev) => ({
+        menuImages: [...prev.menuImages, ...files],
+      }));
+    }
   };
 
   const handleGalleryImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length > 2) {
+      toast.error("Maximum 2 gallery images allowed");
+      e.target.value = ""; // Reset input
+      return;
+    }
     if (files.length) setGalleryImageData({ galleryImages: files });
   };
 
@@ -267,6 +297,22 @@ export default function Restaurant(): React.ReactElement {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    // Pre-submit phone validation
+    const mobileValid = formData.mobileNumber.length === 10;
+    const altValid = formData.alternativeNumber.length === 10;
+    if (!mobileValid || !altValid) {
+      setPhoneErrors((prev) => ({
+        ...prev,
+        mobileNumber: mobileValid
+          ? prev.mobileNumber || ""
+          : "10 digits required",
+        alternativeNumber: altValid
+          ? prev.alternativeNumber || ""
+          : "10 digits required",
+      }));
+      alert("Please enter valid 10 digit Mobile Number(s).");
+      return;
+    }
     // Implementation mirrors provided JS: sequentially POST multiple endpoints.
     let allSuccess = true;
     const errorMessages: string[] = [];
@@ -511,15 +557,15 @@ export default function Restaurant(): React.ReactElement {
         }
       }
 
-      if (menuImageData.menuImage) {
+      if (menuImageData.menuImages.length > 0) {
         try {
           const fd = new FormData();
           if (restaurantId) fd.append("restaurant", String(restaurantId));
-          fd.append("image", menuImageData.menuImage);
+          menuImageData.menuImages.forEach((file) => fd.append("image", file));
           await uploadMenuImage(fd);
         } catch (err) {
           allSuccess = false;
-          errorMessages.push("Error uploading menu image");
+          errorMessages.push("Error uploading menu images");
         }
       }
 
@@ -783,6 +829,11 @@ export default function Restaurant(): React.ReactElement {
                         onChange={handleInputChange}
                         placeholder="Enter Number"
                       />
+                      {phoneErrors.mobileNumber && (
+                        <div style={{ color: "red", fontSize: 12 }}>
+                          {phoneErrors.mobileNumber}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -796,6 +847,11 @@ export default function Restaurant(): React.ReactElement {
                         onChange={handleInputChange}
                         placeholder="Enter Number"
                       />
+                      {phoneErrors.alternativeNumber && (
+                        <div style={{ color: "red", fontSize: 12 }}>
+                          {phoneErrors.alternativeNumber}
+                        </div>
+                      )}
                     </div>
                     <div className="form-group">
                       <label>Landline Number</label>
@@ -950,72 +1006,65 @@ export default function Restaurant(): React.ReactElement {
                         Select Operational Dates
                       </label>
                       <div className="checkbox-row">
-                        <label className="checkbox-label">
-                          <input type="checkbox" /> All
-                        </label>
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="day_monday"
-                            checked={scheduleData.operationalDays.monday}
-                            onChange={handleScheduleChange}
-                          />{" "}
-                          M
-                        </label>
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="day_tuesday"
-                            checked={scheduleData.operationalDays.tuesday}
-                            onChange={handleScheduleChange}
-                          />{" "}
-                          T
-                        </label>
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="day_wednesday"
-                            checked={scheduleData.operationalDays.wednesday}
-                            onChange={handleScheduleChange}
-                          />{" "}
-                          W
-                        </label>
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="day_thursday"
-                            checked={scheduleData.operationalDays.thursday}
-                            onChange={handleScheduleChange}
-                          />{" "}
-                          T
-                        </label>
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="day_friday"
-                            checked={scheduleData.operationalDays.friday}
-                            onChange={handleScheduleChange}
-                          />{" "}
-                          F
-                        </label>
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="day_saturday"
-                            checked={scheduleData.operationalDays.saturday}
-                            onChange={handleScheduleChange}
-                          />{" "}
-                          S
-                        </label>
-                        <label className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            name="day_sunday"
-                            checked={scheduleData.operationalDays.sunday}
-                            onChange={handleScheduleChange}
-                          />{" "}
-                          S
-                        </label>
+                        {(() => {
+                          const days = [
+                            { key: "monday", label: "M" },
+                            { key: "tuesday", label: "T" },
+                            { key: "wednesday", label: "W" },
+                            { key: "thursday", label: "T" },
+                            { key: "friday", label: "F" },
+                            { key: "saturday", label: "S" },
+                            { key: "sunday", label: "S" },
+                          ];
+                          const allSelected = days.every(
+                            (d) => (scheduleData.operationalDays as any)[d.key]
+                          );
+                          return (
+                            <>
+                              <label className="checkbox-label">
+                                <input
+                                  type="checkbox"
+                                  checked={allSelected}
+                                  onChange={() => {
+                                    setScheduleData((prev) => {
+                                      const newVal = !days.every(
+                                        (d) =>
+                                          (prev.operationalDays as any)[d.key]
+                                      );
+                                      const updated: typeof prev.operationalDays =
+                                        {
+                                          ...prev.operationalDays,
+                                        } as any;
+                                      days.forEach((d) => {
+                                        (updated as any)[d.key] = newVal;
+                                      });
+                                      return {
+                                        ...prev,
+                                        operationalDays: updated,
+                                      };
+                                    });
+                                  }}
+                                />{" "}
+                                All
+                              </label>
+                              {days.map((d) => (
+                                <label key={d.key} className="checkbox-label">
+                                  <input
+                                    type="checkbox"
+                                    name={`day_${d.key}`}
+                                    checked={
+                                      (scheduleData.operationalDays as any)[
+                                        d.key
+                                      ]
+                                    }
+                                    onChange={handleScheduleChange}
+                                  />{" "}
+                                  {d.label}
+                                </label>
+                              ))}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="right-section">
@@ -1381,6 +1430,7 @@ export default function Restaurant(): React.ReactElement {
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={handleMenuImageChange}
                           style={{ display: "none" }}
                           id="menu-image-input"
@@ -1393,8 +1443,8 @@ export default function Restaurant(): React.ReactElement {
                             <UploadIcon size={24} />
                           </div>
                           <span>
-                            {menuImageData.menuImage
-                              ? menuImageData.menuImage.name
+                            {menuImageData.menuImages.length > 0
+                              ? `${menuImageData.menuImages.length} file(s) selected`
                               : "Click to Upload"}
                           </span>
                         </label>

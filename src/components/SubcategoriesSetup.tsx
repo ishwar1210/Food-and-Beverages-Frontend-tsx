@@ -4,13 +4,14 @@ import "./SubcategoriesSetup.css";
 interface SubCategory {
   id: number;
   categoryName: string;
-  timings: string;
-  subCategories: string;
+  subCategories: string; // single subcategory name for now
+  description: string;
 }
 
 export default function SubcategoriesSetup(): React.ReactElement {
   const [categoryName, setCategoryName] = useState("");
-  const [timings, setTimings] = useState("");
+  const [subCategoryName, setSubCategoryName] = useState("");
+  const [description, setDescription] = useState("");
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -23,18 +24,17 @@ export default function SubcategoriesSetup(): React.ReactElement {
   }, []);
 
   const handleAdd = () => {
-    if (categoryName.trim() && timings.trim()) {
-      const newSubCategory: SubCategory = {
-        id: Date.now(),
-        categoryName: categoryName.trim(),
-        timings: timings.trim(),
-        subCategories: "", // This would be populated based on your business logic
-      };
-
-      setSubCategories((prev) => [...prev, newSubCategory]);
-      setCategoryName("");
-      setTimings("");
-    }
+    if (!categoryName.trim() || !subCategoryName.trim()) return;
+    const newSubCategory: SubCategory = {
+      id: Date.now(),
+      categoryName: categoryName.trim(),
+      subCategories: subCategoryName.trim(),
+      description: description.trim(),
+    };
+    setSubCategories((prev) => [...prev, newSubCategory]);
+    setCategoryName("");
+    setSubCategoryName("");
+    setDescription("");
   };
 
   const handleEdit = (id: number) => {
@@ -46,11 +46,14 @@ export default function SubcategoriesSetup(): React.ReactElement {
     setSubCategories((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const filteredSubCategories = subCategories.filter(
-    (item) =>
-      item.categoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.timings.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSubCategories = subCategories.filter((item) => {
+    const q = searchTerm.toLowerCase();
+    return (
+      item.categoryName.toLowerCase().includes(q) ||
+      item.subCategories.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q)
+    );
+  });
 
   // Icon components
   const SearchIcon = ({ size = 16 }: { size?: number }) => (
@@ -129,15 +132,24 @@ export default function SubcategoriesSetup(): React.ReactElement {
             type="text"
             placeholder="Enter Category Name"
             className="form-input"
+            style={{ height: "38px" }}
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
           />
           <input
             type="text"
-            placeholder="Enter Timings"
+            placeholder="Enter Subcategory"
             className="form-input"
-            value={timings}
-            onChange={(e) => setTimings(e.target.value)}
+            style={{ height: "38px" }}
+            value={subCategoryName}
+            onChange={(e) => setSubCategoryName(e.target.value)}
+          />
+          <textarea
+            placeholder="Description"
+            className="form-input"
+            style={{ resize: "vertical", height: "38px" }}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
           />
         </div>
 
@@ -155,14 +167,15 @@ export default function SubcategoriesSetup(): React.ReactElement {
             <tr>
               <th>Action</th>
               <th>Category Name</th>
-              <th>Sub Categories</th>
+              <th>Subcategory</th>
+              <th>Description</th>
             </tr>
           </thead>
           <tbody>
             {filteredSubCategories.length === 0 ? (
               <tr>
                 <td
-                  colSpan={3}
+                  colSpan={4}
                   style={{ textAlign: "center", padding: "40px" }}
                 >
                   No sub categories found
@@ -191,6 +204,7 @@ export default function SubcategoriesSetup(): React.ReactElement {
                   </td>
                   <td>{item.categoryName}</td>
                   <td>{item.subCategories}</td>
+                  <td>{item.description}</td>
                 </tr>
               ))
             )}

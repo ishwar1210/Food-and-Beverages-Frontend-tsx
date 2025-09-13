@@ -138,23 +138,31 @@ export default function RestaurantMenu(): React.ReactElement {
         <button className="add-btn" onClick={handleAdd}>
           Add
         </button>
-
-        <div className="form-inputs">
-          <input
-            type="text"
-            placeholder="Enter Category Name"
-            className="form-input"
-            value={categoryName}
-            onChange={(e) => setCategoryName(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Enter Timings"
-            className="form-input"
-            value={timings}
-            onChange={(e) => setTimings(e.target.value)}
-          />
-        </div>
+        <button
+          className="add-btn"
+          onClick={() => document.getElementById("menu-import-input")?.click()}
+          type="button"
+        >
+          Import
+        </button>
+        <input
+          id="menu-import-input"
+          type="file"
+          accept=".csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+              const text = evt.target?.result as string;
+              console.log("Imported file content length:", text?.length || 0);
+              // TODO: parse and update menuItems
+            };
+            reader.readAsText(file);
+            e.target.value = ""; // reset
+          }}
+        />
 
         <div className="pagination-info">1-1 of 1</div>
 

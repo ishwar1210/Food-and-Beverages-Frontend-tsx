@@ -7,6 +7,8 @@ import {
   listRestaurantSchedules,
   updateRestaurantSchedule,
 } from "../api/endpoints";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faMagnifyingGlassPlus } from "@fortawesome/free-solid-svg-icons";
 
 interface Props {
   id: number;
@@ -179,9 +181,6 @@ export default function Viewrestaurant({ id, onBack }: Props) {
           marginBottom: "30px",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: "24px", fontWeight: "600" }}>
-          {name}
-        </h2>
         <button
           onClick={onBack}
           style={{
@@ -874,7 +873,7 @@ export default function Viewrestaurant({ id, onBack }: Props) {
                         opacity: 0.8,
                       }}
                     >
-                      🔍
+                      <FontAwesomeIcon icon={faMagnifyingGlassPlus} />
                     </div>
                   </div>
                 ))}

@@ -8,6 +8,7 @@ import Addrestaurant from "./components/Addrestaurant";
 import CategoriesSetup from "./components/CategoriesSetup";
 import SubcategoriesSetup from "./components/SubcategoriesSetup";
 import RestaurantMenu from "./components/Restaurantmenu";
+import StatusSetup from "./components/Statussetup";
 
 export default function App(): React.ReactElement {
   const [activeMainTab, setActiveMainTab] = useState<number>(0);
@@ -23,11 +24,7 @@ export default function App(): React.ReactElement {
       case 1:
         return <Addrestaurant />;
       case 2:
-        return (
-          <div style={{ padding: "20px", color: "#666" }}>
-            Status Setup Content
-          </div>
-        );
+        return <StatusSetup />;
       case 3:
         return <CategoriesSetup />;
       case 4:
