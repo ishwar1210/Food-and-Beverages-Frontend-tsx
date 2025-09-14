@@ -161,21 +161,19 @@ function Navbar() {
         <div className="ms-auto d-flex align-items-center gap-3">
           <BellIcon className="icon" />
           <GearIcon className="icon" />
-          <div onClick={handleProfileClick} style={{ cursor: "pointer" }}>
-            <ProfileIcon className="icon" />
-          </div>
+          {/* Show profile icon only when user is NOT logged in (acts as login trigger) */}
+          {!userLoggedIn && (
+            <div onClick={handleProfileClick} style={{ cursor: "pointer" }}>
+              <ProfileIcon className="icon" />
+            </div>
+          )}
 
           {/* Show logout button only when user is logged in */}
           {userLoggedIn && (
             <LogoutButton onLogoutSuccess={handleLogoutSuccess} />
           )}
 
-          {/* Show user info when logged in */}
-          {userLoggedIn && currentUser && (
-            <span className="text-white ms-2" style={{ fontSize: "14px" }}>
-              Welcome, {currentUser.username}!
-            </span>
-          )}
+          {/* User welcome message removed per design request */}
         </div>
       </nav>
 

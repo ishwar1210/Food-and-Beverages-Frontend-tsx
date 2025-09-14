@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useToast } from "./toast/ToastProvider";
 import { getToken, getAuthState } from "../services/Login";
 import "./LoginModal.css";
 
@@ -13,6 +14,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: Props) {
   const [password, setPassword] = useState("");
   const [clientUsername, setClientUsername] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const toast = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +32,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: Props) {
         clientUsername || undefined
       );
       if (authState) {
-        alert("✅ Login successful!");
+        toast.success("✅ Login successful!");
         onLoginSuccess?.();
         onClose();
         setUsername("");
