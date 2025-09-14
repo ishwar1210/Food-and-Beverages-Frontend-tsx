@@ -135,6 +135,30 @@ export default function CategoriesSetup(): React.ReactElement {
     </svg>
   );
 
+  // Helper to resolve timings from different possible backend keys
+  const resolveTimings = (cat: any): string => {
+    if (!cat) return "-";
+    const candidates = [
+      cat.timings,
+      cat.time,
+      cat.schedule,
+      cat.menuType,
+      cat.opening_hours,
+      cat.hours,
+      cat.timing,
+    ];
+    for (const c of candidates) {
+      if (typeof c === "string" && c.trim() !== "") return c;
+      if (typeof c === "object" && c !== null) {
+        // If backend returns an object, try common subkeys
+        if (typeof c.text === "string" && c.text.trim() !== "") return c.text;
+        if (typeof c.value === "string" && c.value.trim() !== "")
+          return c.value;
+      }
+    }
+    return "-";
+  };
+
   return (
     <div className="categories-setup-container">
       {/* Header with Add Form */}
@@ -229,7 +253,7 @@ export default function CategoriesSetup(): React.ReactElement {
                   </div>
                 </td>
                 <td>{category.name}</td>
-                <td>{category.timings || "-"}</td>
+                <td>{resolveTimings(category)}</td>
               </tr>
             ))}
           </tbody>

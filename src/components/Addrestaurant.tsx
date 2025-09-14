@@ -15,6 +15,7 @@ import {
   uploadGalleryImage,
   uploadOtherFile,
   deleteRestaurant,
+  updateRestaurant,
 } from "../api/endpoints";
 import "./Addestaurant.css";
 import Viewrestaurant from "./Viewrestaurant";
@@ -747,6 +748,22 @@ export default function Restaurant(): React.ReactElement {
     </svg>
   );
 
+  // Helper to format dates (Created on column)
+  const formatDateTime = (iso?: string): string => {
+    if (!iso) return "-";
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return "-";
+      // Format: DD-MM-YYYY HH:MM
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${pad(d.getDate())}-${pad(
+        d.getMonth() + 1
+      )}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch {
+      return "-";
+    }
+  };
+
   const UploadIcon = ({ size = 24 }: { size?: number }) => (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -765,6 +782,67 @@ export default function Restaurant(): React.ReactElement {
       />
     </svg>
   );
+
+  // Resolve created date and creator name (some APIs may nest or use different keys)
+  const resolveCreatedOn = (r: any): string =>
+    formatDateTime(r?.created_at || r?.createdAt || r?.created || r?.timestamp);
+  const resolveCreatedBy = (r: any): string =>
+    r?.created_by_name ||
+    r?.created_by ||
+    r?.owner_name ||
+    r?.owner ||
+    r?.user ||
+    "-";
+
+  // Status icon components
+  const StatusActiveIcon = () => (
+    <span
+      style={{
+        display: "inline-block",
+        width: 16,
+        height: 16,
+        borderRadius: "50%",
+        background: "#16a34a",
+        boxShadow: "0 0 0 2px #16a34a44",
+      }}
+      title="Active"
+    />
+  );
+  const StatusInactiveIcon = () => (
+    <span
+      style={{
+        display: "inline-block",
+        width: 16,
+        height: 16,
+        borderRadius: "50%",
+        background: "#dc2626",
+        boxShadow: "0 0 0 2px #dc262644",
+      }}
+      title="Inactive"
+    />
+  );
+
+  const toggleStatus = async (r: any) => {
+    if (typeof r?.id === "undefined") return;
+    const current = !!(typeof r.active === "boolean"
+      ? r.active
+      : r.status === "Active");
+    const next = !current;
+    // optimistic UI
+    setRestaurants((prev) =>
+      prev.map((x) => (x.id === r.id ? { ...x, active: next } : x))
+    );
+    try {
+      await updateRestaurant(r.id, { active: next });
+      toast.success(`Status set to ${next ? "Active" : "Inactive"}`);
+    } catch (e) {
+      // revert
+      setRestaurants((prev) =>
+        prev.map((x) => (x.id === r.id ? { ...x, active: current } : x))
+      );
+      toast.error("Failed to update status");
+    }
+  };
 
   // Show Viewrestaurant component if viewing a restaurant
   if (viewingRestaurantId) {
@@ -1589,14 +1667,21 @@ export default function Restaurant(): React.ReactElement {
               )}
             {restaurants.map((r: any) => {
               const name = r.restaurant_name || r.name || `Restaurant ${r.id}`;
+              const isActive =
+                typeof r.active === "boolean"
+                  ? r.active
+                  : r.status === "Active" || r.status === "active";
               return (
                 <tr key={r.id || name}>
                   <td>
-                    <div className="action-icon">
+                    <div
+                      className="action-icon"
+                      style={{ display: "flex", gap: 6 }}
+                    >
                       <button
                         className="action-btn edit-btn"
                         title="Edit"
-                        onClick={() => alert(`Edit ${name}`)}
+                        onClick={() => toast.info(`Edit ${name} coming soon`)}
                       >
                         <EditIcon />
                       </button>
@@ -1623,9 +1708,22 @@ export default function Restaurant(): React.ReactElement {
                     </div>
                   </td>
                   <td>{name}</td>
-                  <td></td>
-                  <td></td>
-                  <td></td>
+                  <td>{resolveCreatedOn(r)}</td>
+                  <td>{resolveCreatedBy(r)}</td>
+                  <td>
+                    <button
+                      onClick={() => toggleStatus(r)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                      }}
+                      title={isActive ? "Deactivate" : "Activate"}
+                    >
+                      {isActive ? <StatusActiveIcon /> : <StatusInactiveIcon />}
+                    </button>
+                  </td>
                 </tr>
               );
             })}
