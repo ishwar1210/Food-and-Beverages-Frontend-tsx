@@ -71,6 +71,14 @@
   background-color: white;
 }
 
+/* Force Category Name input width */
+.form-input[placeholder="Enter Category Name"] {
+  width: 200px !important;
+  min-width: 200px !important;
+  max-width: 200px !important;
+}
+
+
 .form-input:focus {
   outline: none;
   border-color: #6c7ae0;

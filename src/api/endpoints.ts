@@ -59,13 +59,6 @@ async function destroy(url: string): Promise<void> {
   await FandBInstance.delete(url);
 }
 
-// ---- Cuisines ----
-export const listCuisines = (params?: any) => list("/cuisines/", params);
-export const createCuisine = (payload: any) => create("/cuisines/", payload);
-export const updateCuisine = (id: number, payload: any) =>
-  update(`/cuisines/${id}/`, payload);
-export const deleteCuisine = (id: number) => destroy(`/cuisines/${id}/`);
-
 // ---- Restaurants ----
 export const listRestaurants = (params?: any) => list("/restaurants/", params);
 export const retrieveRestaurant = (id: number) =>
@@ -114,6 +107,15 @@ export const createOrderConfig = (payload: any) =>
   create("/order-configs/", payload);
 export const updateOrderConfig = (id: number, payload: any) =>
   update(`/order-configs/${id}/`, payload, "patch");
+
+// ---- Cuisines ----
+export const listCuisines = (params?: any) => list("/cuisines/", params);
+export const listMasterCuisines = (params?: any) =>
+  list("/master-cuisines/", params);
+export const createCuisine = (payload: any) => create("/cuisines/", payload);
+export const updateCuisine = (id: number, payload: any) =>
+  update(`/cuisines/${id}/`, payload);
+export const deleteCuisine = (id: number) => destroy(`/cuisines/${id}/`);
 
 // ---- Categories ----
 export const listCategories = (params?: any) => list("/categories/", params);

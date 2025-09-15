@@ -3,7 +3,8 @@ import { useToast } from "./toast/ToastProvider";
 import type { ChangeEvent, FormEvent } from "react";
 // Use centralized API helpers instead of hardcoded fetch calls
 import {
-  listCuisines,
+  listMasterCuisines,
+  createCuisine,
   listRestaurants,
   createRestaurant,
   createRestaurantSchedulesBulk,
@@ -49,6 +50,7 @@ type FormDataShape = {
   pureVeg: string;
   costForTwo: string;
   termsAndConditions: string;
+  disclaimer: string;
   closingMessage: string;
 };
 
@@ -99,6 +101,7 @@ export default function Restaurant(): React.ReactElement {
     pureVeg: "",
     costForTwo: "",
     termsAndConditions: "",
+    disclaimer: "",
     closingMessage: "",
   });
 
@@ -179,10 +182,10 @@ export default function Restaurant(): React.ReactElement {
   useEffect(() => {
     const fetchCuisines = async () => {
       try {
-        const data = await listCuisines();
+        // Use master-cuisines API for dropdown
+        const data = await listMasterCuisines();
         setCuisines(Array.isArray(data) ? data : []);
       } catch (err) {
-        // fallback sample data on failure (e.g., 403)
         setCuisines([
           { id: 1, name: "Italian" },
           { id: 2, name: "Chinese" },
@@ -333,8 +336,9 @@ export default function Restaurant(): React.ReactElement {
         wheelchair_accessible: formData.wheelchairAccessible === "yes",
         cash_on_delivery: formData.cashOnDelivery === "yes",
         pure_veg: formData.pureVeg === "yes",
-        cuisines: formData.cuisines ? [Number(formData.cuisines)] : [],
+        // cuisines will be saved separately below
         terms_and_conditions: formData.termsAndConditions || "",
+        disclaimer: formData.disclaimer || "",
         closing_message: formData.closingMessage || "",
         cost_for_two: formData.costForTwo ? parseFloat(formData.costForTwo) : 0,
       };
@@ -350,6 +354,30 @@ export default function Restaurant(): React.ReactElement {
           created?.restaurant_id ??
           null;
         if (!restaurantId) throw new Error("No restaurant id in response");
+        // Save selected cuisine to /api/cuisines/
+        if (formData.cuisines) {
+          try {
+            // Backend requires name, restaurant and master_cuisine
+            const masterCuisineId = formData.cuisines;
+            const selectedMaster = cuisines.find(
+              (c) =>
+                String(c.id) === String(masterCuisineId) ||
+                String(c._id) === String(masterCuisineId)
+            );
+            const cuisineName =
+              selectedMaster?.name ||
+              selectedMaster?.title ||
+              String(masterCuisineId);
+
+            await createCuisine({
+              name: cuisineName,
+              restaurant: restaurantId,
+              master_cuisine: masterCuisineId,
+            });
+          } catch (err) {
+            errorMessages.push("Error saving cuisine selection");
+          }
+        }
       } catch (err) {
         allSuccess = false;
         errorMessages.push("Error saving restaurant basic details");
@@ -796,30 +824,58 @@ export default function Restaurant(): React.ReactElement {
 
   // Status icon components
   const StatusActiveIcon = () => (
-    <span
+    <div
       style={{
         display: "inline-block",
-        width: 16,
-        height: 16,
-        borderRadius: "50%",
-        background: "#16a34a",
-        boxShadow: "0 0 0 2px #16a34a44",
+        width: 40,
+        height: 20,
+        backgroundColor: "#4CAF50",
+        borderRadius: 10,
+        position: "relative",
+        cursor: "pointer",
       }}
       title="Active"
-    />
+    >
+      <div
+        style={{
+          width: 16,
+          height: 16,
+          backgroundColor: "white",
+          borderRadius: "50%",
+          position: "absolute",
+          top: 2,
+          right: 2,
+          transition: "all 0.3s ease",
+        }}
+      />
+    </div>
   );
   const StatusInactiveIcon = () => (
-    <span
+    <div
       style={{
         display: "inline-block",
-        width: 16,
-        height: 16,
-        borderRadius: "50%",
-        background: "#dc2626",
-        boxShadow: "0 0 0 2px #dc262644",
+        width: 40,
+        height: 20,
+        backgroundColor: "#f44336",
+        borderRadius: 10,
+        position: "relative",
+        cursor: "pointer",
       }}
       title="Inactive"
-    />
+    >
+      <div
+        style={{
+          width: 16,
+          height: 16,
+          backgroundColor: "white",
+          borderRadius: "50%",
+          position: "absolute",
+          top: 2,
+          left: 2,
+          transition: "all 0.3s ease",
+        }}
+      />
+    </div>
   );
 
   const toggleStatus = async (r: any) => {
@@ -1046,6 +1102,16 @@ export default function Restaurant(): React.ReactElement {
                         value={formData.termsAndConditions}
                         onChange={handleInputChange}
                         placeholder="Enter terms..."
+                      ></textarea>
+                    </div>
+                    <div className="form-group">
+                      <label>Disclaimer</label>
+                      <textarea
+                        rows={3}
+                        name="disclaimer"
+                        value={formData.disclaimer}
+                        onChange={handleInputChange}
+                        placeholder="Enter disclaimer..."
                       ></textarea>
                     </div>
                     <div className="form-group">

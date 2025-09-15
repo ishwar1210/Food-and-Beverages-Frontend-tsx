@@ -5,13 +5,11 @@ interface SubCategory {
   id: number;
   categoryName: string;
   subCategories: string; // single subcategory name for now
-  description: string;
 }
 
 export default function SubcategoriesSetup(): React.ReactElement {
   const [categoryName, setCategoryName] = useState("");
   const [subCategoryName, setSubCategoryName] = useState("");
-  const [description, setDescription] = useState("");
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -29,12 +27,10 @@ export default function SubcategoriesSetup(): React.ReactElement {
       id: Date.now(),
       categoryName: categoryName.trim(),
       subCategories: subCategoryName.trim(),
-      description: description.trim(),
     };
     setSubCategories((prev) => [...prev, newSubCategory]);
     setCategoryName("");
     setSubCategoryName("");
-    setDescription("");
   };
 
   const handleEdit = (id: number) => {
@@ -50,8 +46,7 @@ export default function SubcategoriesSetup(): React.ReactElement {
     const q = searchTerm.toLowerCase();
     return (
       item.categoryName.toLowerCase().includes(q) ||
-      item.subCategories.toLowerCase().includes(q) ||
-      item.description.toLowerCase().includes(q)
+      item.subCategories.toLowerCase().includes(q)
     );
   });
 
@@ -132,24 +127,9 @@ export default function SubcategoriesSetup(): React.ReactElement {
             type="text"
             placeholder="Enter Category Name"
             className="form-input"
-            style={{ height: "38px" }}
+            style={{ height: "38px", width: "120px", minWidth: "120px" }}
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Enter Subcategory"
-            className="form-input"
-            style={{ height: "38px" }}
-            value={subCategoryName}
-            onChange={(e) => setSubCategoryName(e.target.value)}
-          />
-          <textarea
-            placeholder="Description"
-            className="form-input"
-            style={{ resize: "vertical", height: "38px" }}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
           />
         </div>
 
@@ -168,7 +148,6 @@ export default function SubcategoriesSetup(): React.ReactElement {
               <th>Action</th>
               <th>Category Name</th>
               <th>Subcategory</th>
-              <th>Description</th>
             </tr>
           </thead>
           <tbody>
@@ -204,7 +183,6 @@ export default function SubcategoriesSetup(): React.ReactElement {
                   </td>
                   <td>{item.categoryName}</td>
                   <td>{item.subCategories}</td>
-                  <td>{item.description}</td>
                 </tr>
               ))
             )}

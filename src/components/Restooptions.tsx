@@ -12,9 +12,9 @@ export default function Resto_options({ onTabChange, activeTab }: Props) {
     "Restaurant",
     "Status Setup",
     "Categories Setup",
-    "Sub Categories Setup",
+    "Cuisine Setup",
     "Restaurant Menu",
-    "Restaurant Bookings",
+    "Stock management",
   ];
 
   const [activeIndex, setActiveIndex] = useState<number>(activeTab ?? 0);
