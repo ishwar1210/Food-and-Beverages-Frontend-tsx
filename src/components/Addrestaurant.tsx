@@ -177,7 +177,6 @@ export default function Restaurant(): React.ReactElement {
   }>({ mobileNumber: "", alternativeNumber: "" });
 
   const [cuisines, setCuisines] = useState<Cuisine[]>([]);
-  const [loadingCuisines, setLoadingCuisines] = useState(true);
 
   useEffect(() => {
     const fetchCuisines = async () => {
@@ -187,12 +186,8 @@ export default function Restaurant(): React.ReactElement {
         setCuisines(Array.isArray(data) ? data : []);
       } catch (err) {
         setCuisines([
-          { id: 1, name: "Italian" },
-          { id: 2, name: "Chinese" },
-          { id: 3, name: "Indian" },
         ]);
       } finally {
-        setLoadingCuisines(false);
       }
     };
     fetchCuisines();
