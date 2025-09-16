@@ -55,12 +55,21 @@ export default function CategoriesSetup(): React.ReactElement {
     }
 
     try {
-      const payload = {
-        name: formData.categoryName.trim(),
-        timings: formData.timings.trim() || null,
-      };
+      const timingsValue = formData.timings.trim();
+      // Build payload with multiple possible timing keys to match backend expectations
+      const payload: any = { name: formData.categoryName.trim() };
+      if (timingsValue) {
+        payload.timings = timingsValue;
+        payload.time = timingsValue;
+        payload.timing = timingsValue;
+        payload.opening_hours = timingsValue;
+        // also include a structured field if backend expects object
+        payload.schedule = timingsValue;
+      }
 
+      console.debug("Creating category with payload", payload);
       const newCategory = await createCategory(payload);
+      console.debug("createCategory response", newCategory);
 
       // Add to local state
       setCategories((prev) => [...prev, newCategory]);

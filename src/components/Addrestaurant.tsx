@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useToast } from "./toast/ToastProvider";
 import type { ChangeEvent, FormEvent } from "react";
 // Use centralized API helpers instead of hardcoded fetch calls
@@ -43,7 +43,7 @@ type FormDataShape = {
   city: string;
   pincode: string;
   aboutRestaurant: string;
-  cuisines: string | number;
+  cuisines: string[];
   drinkAlcohol: string;
   wheelchairAccessible: string;
   cashOnDelivery: string;
@@ -94,7 +94,7 @@ export default function Restaurant(): React.ReactElement {
     city: "",
     pincode: "",
     aboutRestaurant: "",
-    cuisines: "",
+    cuisines: [],
     drinkAlcohol: "",
     wheelchairAccessible: "",
     cashOnDelivery: "",
@@ -217,6 +217,16 @@ export default function Restaurant(): React.ReactElement {
             ? ""
             : "10 digits required",
       }));
+      return;
+    }
+
+    // handle multi-select cuisines
+    if (name === "cuisines") {
+      const sel = e.target as HTMLSelectElement;
+      const values = Array.from(sel.selectedOptions).map((o) =>
+        String(o.value)
+      );
+      setFormData((prev) => ({ ...prev, cuisines: values } as any));
       return;
     }
 
@@ -354,28 +364,37 @@ export default function Restaurant(): React.ReactElement {
           created?.restaurant_id ??
           null;
         if (!restaurantId) throw new Error("No restaurant id in response");
-        // Save selected cuisine to /api/cuisines/
-        if (formData.cuisines) {
-          try {
-            // Backend requires name, restaurant and master_cuisine
-            const masterCuisineId = formData.cuisines;
-            const selectedMaster = cuisines.find(
-              (c) =>
-                String(c.id) === String(masterCuisineId) ||
-                String(c._id) === String(masterCuisineId)
-            );
-            const cuisineName =
-              selectedMaster?.name ||
-              selectedMaster?.title ||
-              String(masterCuisineId);
-
-            await createCuisine({
-              name: cuisineName,
-              restaurant: restaurantId,
-              master_cuisine: masterCuisineId,
-            });
-          } catch (err) {
-            errorMessages.push("Error saving cuisine selection");
+        // Save each selected cuisine to /api/cuisines/ (one POST per selection)
+        if (
+          formData.cuisines &&
+          Array.isArray(formData.cuisines) &&
+          formData.cuisines.length
+        ) {
+          for (const masterCuisineIdRaw of formData.cuisines) {
+            try {
+              const masterCuisineId = String(masterCuisineIdRaw);
+              const selectedMaster = cuisines.find(
+                (c) =>
+                  String(c.id) === masterCuisineId ||
+                  String(c._id) === masterCuisineId ||
+                  String(c.name) === masterCuisineId
+              );
+              const cuisineName =
+                selectedMaster?.name ||
+                selectedMaster?.title ||
+                masterCuisineId;
+              const payload = {
+                name: cuisineName,
+                restaurant: restaurantId,
+                master_cuisine: masterCuisineId,
+              };
+              // helpful debug while backend is being tested
+              // eslint-disable-next-line no-console
+              console.debug("Creating cuisine", payload);
+              await createCuisine(payload);
+            } catch (err) {
+              errorMessages.push("Error saving one of the cuisine selections");
+            }
           }
         }
       } catch (err) {
@@ -878,6 +897,171 @@ export default function Restaurant(): React.ReactElement {
     </div>
   );
 
+  // Lightweight dropdown multi-select for cuisines (compact UI)
+  const MultiCuisineSelect = ({
+    options,
+    value,
+    onChange,
+  }: {
+    options: Cuisine[];
+    value: string[];
+    onChange: (v: string[]) => void;
+  }) => {
+    const [openState, setOpenState] = useState(false);
+    const root = useRef<HTMLDivElement | null>(null);
+
+    const openPanel = () => setOpenState(true);
+    const closePanel = () => setOpenState(false);
+
+    const handleToggleSelection = (val: string) => {
+      const next = new Set(value || []);
+      if (next.has(val)) next.delete(val);
+      else next.add(val);
+      onChange(Array.from(next));
+      // ensure panel remains open while selecting
+      setOpenState(true);
+    };
+
+    const labelsArr = (value || [])
+      .map((id) => {
+        const found = options.find(
+          (o) =>
+            String(o.id) === String(id) ||
+            String(o._id) === String(id) ||
+            String(o.name) === String(id)
+        );
+        return found
+          ? found.name || found.title || String(found.id ?? found._id)
+          : String(id);
+      })
+      .filter(Boolean) as string[];
+
+    return (
+      <div
+        ref={root}
+        style={{ position: "relative", display: "inline-block", width: "100%" }}
+      >
+        <button
+          type="button"
+          onClick={openPanel}
+          aria-haspopup="listbox"
+          aria-expanded={openState}
+          style={{
+            width: "100%",
+            textAlign: "left",
+            padding: "10px 12px",
+            border: "1px solid #d0d7de",
+            borderRadius: 6,
+            background: "#fff",
+            cursor: "pointer",
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            textOverflow: "ellipsis",
+            boxSizing: "border-box",
+          }}
+        >
+          <span
+            style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}
+          >
+            {labelsArr.length === 0
+              ? "Select cuisine"
+              : labelsArr.length <= 2
+              ? labelsArr.join(", ")
+              : `${labelsArr.length} selected`}
+          </span>
+          <span style={{ color: "#666", fontSize: 12 }}>
+            {openState ? "▲" : "▼"}
+          </span>
+        </button>
+
+        {openState && (
+          <div
+            role="listbox"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              left: 0,
+              right: 0,
+              background: "#fff",
+              border: "1px solid rgba(0,0,0,0.12)",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+              borderRadius: 8,
+              maxHeight: 240,
+              overflowY: "auto",
+              zIndex: 1200,
+              padding: 6,
+            }}
+          >
+            {options && options.length > 0 ? (
+              options.map((o) => {
+                const id = String(o.id ?? o._id ?? o.name ?? "");
+                const checked = (value || []).some((v) => String(v) === id);
+                return (
+                  <label
+                    key={id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                    onPointerDown={(ev) => ev.preventDefault()} // prevent blur/focus change
+                    onClick={(ev) => ev.stopPropagation()} // prevent outer handlers
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onPointerDown={(ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        handleToggleSelection(id);
+                      }}
+                      onClick={(ev) => ev.stopPropagation()}
+                      style={{ width: 16, height: 16 }}
+                    />
+                    <span style={{ userSelect: "none" }}>{o.name}</span>
+                  </label>
+                );
+              })
+            ) : (
+              <div style={{ padding: 8, color: "#666" }}>No cuisines</div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                padding: 8,
+              }}
+            >
+              <button
+                type="button"
+                onClick={closePanel}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  border: "1px solid #d0d7de",
+                  background: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const toggleStatus = async (r: any) => {
     if (typeof r?.id === "undefined") return;
     const current = !!(typeof r.active === "boolean"
@@ -1012,24 +1196,17 @@ export default function Restaurant(): React.ReactElement {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Cuisines</label>
-                      <select
-                        name="cuisines"
-                        value={formData.cuisines}
-                        onChange={handleInputChange}
-                      >
-                        <option value="">
-                          {loadingCuisines ? "Loading..." : "Select Cuisines"}
-                        </option>
-                        {cuisines && cuisines.length > 0
-                          ? cuisines.map((c) => (
-                              <option key={c.id ?? c._id} value={c.id ?? c._id}>
-                                {c.name ?? c.title ?? "Unknown Cuisine"}
-                              </option>
-                            ))
-                          : !loadingCuisines && (
-                              <option disabled>No cuisines available</option>
-                            )}
-                      </select>
+                      <MultiCuisineSelect
+                        options={cuisines}
+                        value={
+                          Array.isArray(formData.cuisines)
+                            ? formData.cuisines
+                            : []
+                        }
+                        onChange={(arr) =>
+                          setFormData((p) => ({ ...p, cuisines: arr }))
+                        }
+                      />
                     </div>
                     <div className="form-group">
                       <label>Drink Alcohol*</label>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { listCuisines } from "../api/endpoints";
 import "./SubcategoriesSetup.css";
 
 interface SubCategory {
@@ -11,14 +12,62 @@ export default function SubcategoriesSetup(): React.ReactElement {
   const [categoryName, setCategoryName] = useState("");
   const [subCategoryName, setSubCategoryName] = useState("");
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Sample data - replace with actual API calls
+  // Load cuisines from API
   useEffect(() => {
-    // This would be replaced with actual API call
-    setSubCategories([
-      // Add sample data here if needed
-    ]);
+    let mounted = true;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listCuisines();
+        console.debug("[SubcategoriesSetup] raw cuisines response", data);
+
+        if (!mounted) return;
+
+        // ✅ Safe mapping (works for array or object with results[])
+        const rawArray = Array.isArray(data)
+          ? data
+          : Array.isArray((data as any)?.results)
+          ? (data as any).results
+          : [];
+
+        const mapped = rawArray.map((d: any, idx: number) => ({
+          id:
+            (typeof d.id === "number" ? d.id : Number(d.id)) ||
+            (typeof d._id === "number" ? d._id : Number(d._id)) ||
+            idx + 1,
+          categoryName:
+            typeof d.master_cuisine_name === "string"
+              ? d.master_cuisine_name
+              : typeof d.master_cuisine === "string"
+              ? d.master_cuisine
+              : typeof d.category === "string"
+              ? d.category
+              : "",
+          subCategories:
+            typeof d.name === "string"
+              ? d.name
+              : typeof d.cuisine_name === "string"
+              ? d.cuisine_name
+              : "",
+        }));
+
+        console.debug("[SubcategoriesSetup] mapped cuisines", mapped);
+        setSubCategories(mapped);
+      } catch (e: any) {
+        if (mounted) setError(e?.message || "Failed to load cuisines");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleAdd = () => {
@@ -35,18 +84,23 @@ export default function SubcategoriesSetup(): React.ReactElement {
 
   const handleEdit = (id: number) => {
     console.log("Edit sub category:", id);
-    // Implement edit functionality
+    // TODO: Implement edit functionality
   };
 
   const handleDelete = (id: number) => {
-    setSubCategories((prev) => prev.filter((item) => item.id !== id));
+    setSubCategories((prev) => prev.filter((item) => item?.id !== id));
   };
 
-  const filteredSubCategories = subCategories.filter((item) => {
+  // ✅ Crash-proof filter
+  const filteredSubCategories = (subCategories || []).filter((item) => {
+    if (!item) return false;
     const q = searchTerm.toLowerCase();
+    const category =
+      typeof item.categoryName === "string" ? item.categoryName : "";
+    const subCat =
+      typeof item.subCategories === "string" ? item.subCategories : "";
     return (
-      item.categoryName.toLowerCase().includes(q) ||
-      item.subCategories.toLowerCase().includes(q)
+      category.toLowerCase().includes(q) || subCat.toLowerCase().includes(q)
     );
   });
 
@@ -111,7 +165,7 @@ export default function SubcategoriesSetup(): React.ReactElement {
           <SearchIcon />
           <input
             type="text"
-            placeholder=""
+            placeholder="Search..."
             className="search-input"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -127,13 +181,29 @@ export default function SubcategoriesSetup(): React.ReactElement {
             type="text"
             placeholder="Enter Category Name"
             className="form-input"
-            style={{ height: "38px", width: "120px", minWidth: "120px" }}
+            style={{ height: "38px", width: "140px" }}
             value={categoryName}
             onChange={(e) => setCategoryName(e.target.value)}
           />
+          <input
+            type="text"
+            placeholder="Enter Cuisine Name"
+            className="form-input"
+            style={{ height: "38px", width: "160px" }}
+            value={subCategoryName}
+            onChange={(e) => setSubCategoryName(e.target.value)}
+          />
         </div>
 
-        <div className="pagination-info">1-1 of 1</div>
+        <div className="pagination-info">
+          {loading
+            ? "Loading..."
+            : error
+            ? "Error"
+            : `${subCategories.length} record${
+                subCategories.length === 1 ? "" : "s"
+              }`}
+        </div>
 
         <div className="pagination-controls">
           <button className="pagination-btn">‹</button>
@@ -147,11 +217,23 @@ export default function SubcategoriesSetup(): React.ReactElement {
             <tr>
               <th>Action</th>
               <th>Category Name</th>
-              <th>Subcategory</th>
+              <th>Cuisine Name</th>
             </tr>
           </thead>
           <tbody>
-            {filteredSubCategories.length === 0 ? (
+            {error ? (
+              <tr>
+                <td colSpan={4} style={{ color: "#b00020", padding: 20 }}>
+                  {error}
+                </td>
+              </tr>
+            ) : loading ? (
+              <tr>
+                <td colSpan={4} style={{ padding: 20 }}>
+                  Loading...
+                </td>
+              </tr>
+            ) : filteredSubCategories.length === 0 ? (
               <tr>
                 <td
                   colSpan={4}
@@ -181,8 +263,8 @@ export default function SubcategoriesSetup(): React.ReactElement {
                       </button>
                     </div>
                   </td>
-                  <td>{item.categoryName}</td>
-                  <td>{item.subCategories}</td>
+                  <td>{item.categoryName || "-"}</td>
+                  <td>{item.subCategories || "-"}</td>
                 </tr>
               ))
             )}
