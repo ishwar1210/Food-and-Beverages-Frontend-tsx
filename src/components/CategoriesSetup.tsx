@@ -4,6 +4,8 @@ import {
   listCategories,
   createCategory,
   deleteCategory,
+  listCuisines,
+  listMasterCuisines,
 } from "../api/endpoints";
 import "./CategoriesSetup.css";
 
@@ -20,7 +22,12 @@ export default function CategoriesSetup(): React.ReactElement {
   const [formData, setFormData] = useState({
     categoryName: "",
     timings: "",
+    cuisineId: "",
+    cuisineName: "",
   });
+  const [cuisines, setCuisines] = useState<Array<{ id: number; name: string }>>(
+    []
+  );
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
 
   const toast = useToast();
@@ -28,7 +35,29 @@ export default function CategoriesSetup(): React.ReactElement {
   // Load categories on component mount
   useEffect(() => {
     loadCategories();
+    loadCuisines();
   }, []);
+
+  const loadCuisines = async () => {
+    try {
+      // try to load master cuisines first, fall back to cuisines list
+      let data: any = await listMasterCuisines();
+      if (!Array.isArray(data) || data.length === 0) {
+        data = await listCuisines();
+      }
+      // normalize to [{id, name}]
+      const normalized = Array.isArray(data)
+        ? data.map((c: any) => ({
+            id: c.id ?? c.pk ?? c.value ?? 0,
+            name: c.name ?? c.title ?? c.label ?? String(c),
+          }))
+        : [];
+      setCuisines(normalized.filter((c: any) => c.id));
+    } catch (err) {
+      console.debug("Failed to load cuisines for category select", err);
+      setCuisines([]);
+    }
+  };
 
   const loadCategories = async () => {
     setLoading(true);
@@ -47,6 +76,9 @@ export default function CategoriesSetup(): React.ReactElement {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
+
+  // use the same input handler for text inputs (including cuisineName)
+  // For datalist selection, we'll map the name back to an id when submitting
 
   const handleAdd = async () => {
     if (!formData.categoryName.trim()) {
@@ -67,6 +99,22 @@ export default function CategoriesSetup(): React.ReactElement {
         payload.schedule = timingsValue;
       }
 
+  // resolve cuisine id from selection (either stored id or by matching name)
+      let cuisineIdResolved: number | undefined;
+      if (formData.cuisineId) cuisineIdResolved = Number(formData.cuisineId);
+      else if (formData.cuisineName) {
+        const found = cuisines.find(
+          (c) => c.name.toLowerCase() === formData.cuisineName.trim().toLowerCase()
+        );
+        if (found) cuisineIdResolved = found.id;
+      }
+
+      if (cuisineIdResolved) {
+        payload.cuisine = cuisineIdResolved;
+        payload.cuisine_id = cuisineIdResolved;
+        payload.master_cuisine = cuisineIdResolved;
+      }
+
       console.debug("Creating category with payload", payload);
       const newCategory = await createCategory(payload);
       console.debug("createCategory response", newCategory);
@@ -74,8 +122,8 @@ export default function CategoriesSetup(): React.ReactElement {
       // Add to local state
       setCategories((prev) => [...prev, newCategory]);
 
-      // Reset form
-      setFormData({ categoryName: "", timings: "" });
+  // Reset form (include cuisineId and cuisineName since they're part of formData)
+  setFormData({ categoryName: "", timings: "", cuisineId: "", cuisineName: "" });
 
       toast.success("Category added successfully");
     } catch (error) {
@@ -192,6 +240,20 @@ export default function CategoriesSetup(): React.ReactElement {
             placeholder="Enter Timings"
             className="input-timings"
           />
+          {/* Cuisine input with datalist so it looks like a text input (same styling as timings) */}
+          <input
+            list="cuisine-list"
+            name="cuisineName"
+            value={formData.cuisineName}
+            onChange={handleInputChange}
+            placeholder="Enter Cuisine"
+            className="input-timings"
+          />
+          <datalist id="cuisine-list">
+            {cuisines.map((c) => (
+              <option key={c.id} value={c.name} />
+            ))}
+          </datalist>
         </div>
 
         {/* Pagination Info */}
