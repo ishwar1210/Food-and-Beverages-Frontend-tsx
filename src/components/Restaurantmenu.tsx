@@ -176,13 +176,117 @@ export default function RestaurantMenu(): React.ReactElement {
     }
   };
 
-  const handleEdit = (id: number) => {
-    console.log("Edit menu item:", id);
-    // Implement edit functionality
-  };
+  // ...existing code...
 
   const handleDelete = (id: number) => {
     setMenuItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // Inline edit state
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<Partial<MenuItem>>({});
+
+  const startEdit = (item: MenuItem) => {
+    setEditingId(item.id);
+    setEditValues({
+      products: item.products,
+      masterPrice: item.masterPrice,
+      displayPrice: item.displayPrice,
+      category: item.category,
+      subCategory: item.subCategory,
+      menuType: item.menuType,
+      discount: item.discount,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const saveEdit = async (id: number) => {
+    const payload: any = {};
+    if (editValues.products !== undefined)
+      payload.products = editValues.products;
+    if (editValues.masterPrice !== undefined)
+      payload.master_price = Number(editValues.masterPrice);
+    if (editValues.displayPrice !== undefined)
+      payload.display_price = Number(editValues.displayPrice);
+    if (editValues.category !== undefined)
+      payload.category = editValues.category;
+    if (editValues.subCategory !== undefined)
+      payload.cuisine_name = editValues.subCategory; // best-effort
+    if (editValues.menuType !== undefined)
+      payload.menu_type = editValues.menuType;
+    if (editValues.discount !== undefined)
+      payload.discount = Number(editValues.discount);
+
+    // optimistic update: apply edits locally first so UI updates immediately
+    const prevMenu = menuItems;
+    setMenuItems((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? ({
+              ...m,
+              products: editValues.products ?? m.products,
+              masterPrice: Number(editValues.masterPrice ?? m.masterPrice),
+              displayPrice: Number(editValues.displayPrice ?? m.displayPrice),
+              category: editValues.category ?? m.category,
+              subCategory: editValues.subCategory ?? m.subCategory,
+              menuType: editValues.menuType ?? m.menuType,
+              discount: Number(editValues.discount ?? m.discount),
+            } as MenuItem)
+          : m
+      )
+    );
+
+    try {
+      console.debug("Saving item", id, payload);
+      // include both display_price and price to maximize backend compatibility
+      if (payload.display_price !== undefined && payload.price === undefined) {
+        payload.price = payload.display_price;
+      }
+      const res: any = await patchItem(id, payload);
+      console.debug("Save response", res);
+      // merge server response if provided
+      if (res) {
+        setMenuItems((prev) =>
+          prev.map((m) =>
+            m.id === id
+              ? ({
+                  ...m,
+                  ...{
+                    products: res.products ?? res.name ?? m.products,
+                    masterPrice: Number(
+                      res.master_price ?? res.masterPrice ?? m.masterPrice
+                    ),
+                    displayPrice: Number(
+                      res.display_price ??
+                        res.displayPrice ??
+                        res.price ??
+                        m.displayPrice
+                    ),
+                    category: res.category ?? res.category_name ?? m.category,
+                    subCategory:
+                      res.cuisine_name ??
+                      res.cuisine ??
+                      res.master_cuisine_name ??
+                      m.subCategory,
+                    menuType: res.menu_type ?? res.item_type ?? m.menuType,
+                    discount: Number(res.discount ?? m.discount),
+                  },
+                } as MenuItem)
+              : m
+          )
+        );
+      }
+      setEditingId(null);
+      setEditValues({});
+    } catch (err) {
+      console.error("Failed to save edits", err);
+      // rollback optimistic update
+      setMenuItems(prevMenu);
+    }
   };
 
   // Toggle status active <-> inactive (optimistic UI with rollback on error)
@@ -190,12 +294,10 @@ export default function RestaurantMenu(): React.ReactElement {
     const prev = menuItems;
     const next = menuItems.map((m) =>
       m.id === id
-        ? {
+        ? ({
             ...m,
-            status: (m.status === "active" ? "inactive" : "active") as
-              | "active"
-              | "inactive",
-          }
+            status: m.status === "active" ? "inactive" : "active",
+          } as MenuItem)
         : m
     );
     setMenuItems(next);
@@ -339,18 +441,6 @@ export default function RestaurantMenu(): React.ReactElement {
 
         <div className="pagination-info">1-1 of 1</div>
 
-        <div style={{ marginLeft: 12 }}>
-          <label style={{ fontSize: 12, color: "#555" }}>
-            <input
-              type="checkbox"
-              checked={showRawColumn}
-              onChange={(e) => setShowRawColumn(e.target.checked)}
-              style={{ marginRight: 6 }}
-            />
-            Show raw JSON
-          </label>
-        </div>
-
         <div className="pagination-controls">
           <button className="pagination-btn">‹</button>
           <button className="pagination-btn">›</button>
@@ -390,29 +480,155 @@ export default function RestaurantMenu(): React.ReactElement {
                 <tr key={item.id}>
                   <td>
                     <div className="action-icons">
-                      <button
-                        className="action-btn edit-btn"
-                        title="Edit"
-                        onClick={() => handleEdit(item.id)}
-                      >
-                        <EditIcon />
-                      </button>
-                      <button
-                        className="action-btn delete-btn"
-                        title="Delete"
-                        onClick={() => handleDelete(item.id)}
-                      >
-                        <DeleteIcon />
-                      </button>
+                      {editingId === item.id ? (
+                        <>
+                          <button
+                            className="action-btn edit-btn"
+                            title="Save"
+                            onClick={() => saveEdit(item.id)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="action-btn delete-btn"
+                            title="Cancel"
+                            onClick={() => cancelEdit()}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="action-btn edit-btn"
+                            title="Edit"
+                            onClick={() => startEdit(item)}
+                          >
+                            <EditIcon />
+                          </button>
+                          <button
+                            className="action-btn delete-btn"
+                            title="Delete"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <DeleteIcon />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
-                  <td>{item.products}</td>
-                  <td>₹{item.masterPrice}</td>
-                  <td>₹{item.displayPrice}</td>
-                  <td>{item.category}</td>
-                  <td>{item.subCategory}</td>
-                  <td>{item.menuType}</td>
-                  <td>{item.discount}%</td>
+                  <td>
+                    {editingId === item.id ? (
+                      <input
+                        value={String(editValues.products ?? "")}
+                        onChange={(e) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            products: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      item.products
+                    )}
+                  </td>
+                  <td>
+                    {editingId === item.id ? (
+                      <input
+                        type="number"
+                        value={String(
+                          editValues.masterPrice ?? item.masterPrice
+                        )}
+                        onChange={(e) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            masterPrice: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    ) : (
+                      `₹${item.masterPrice}`
+                    )}
+                  </td>
+                  <td>
+                    {editingId === item.id ? (
+                      <input
+                        type="number"
+                        value={String(
+                          editValues.displayPrice ?? item.displayPrice
+                        )}
+                        onChange={(e) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            displayPrice: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    ) : (
+                      `₹${item.displayPrice}`
+                    )}
+                  </td>
+                  <td>
+                    {editingId === item.id ? (
+                      <input
+                        value={String(editValues.category ?? "")}
+                        onChange={(e) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            category: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      item.category
+                    )}
+                  </td>
+                  <td>
+                    {editingId === item.id ? (
+                      <input
+                        value={String(editValues.subCategory ?? "")}
+                        onChange={(e) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            subCategory: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      item.subCategory
+                    )}
+                  </td>
+                  <td>
+                    {editingId === item.id ? (
+                      <input
+                        value={String(editValues.menuType ?? "")}
+                        onChange={(e) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            menuType: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      item.menuType
+                    )}
+                  </td>
+                  <td>
+                    {editingId === item.id ? (
+                      <input
+                        type="number"
+                        value={String(editValues.discount ?? item.discount)}
+                        onChange={(e) =>
+                          setEditValues((s) => ({
+                            ...s,
+                            discount: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    ) : (
+                      `${item.discount}%`
+                    )}
+                  </td>
                   <td>{formatDateTime(item.createdOn)}</td>
                   <td>{formatDateTime(item.updatedOn)}</td>
                   <td>
