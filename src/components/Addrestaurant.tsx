@@ -184,7 +184,14 @@ export default function Restaurant(): React.ReactElement {
       try {
         // Use master-cuisines API for dropdown
         const data = await listMasterCuisines();
-        setCuisines(Array.isArray(data) ? data : []);
+        // normalize to [{ id, name }] to keep UI consistent with other components
+        const normalized = Array.isArray(data)
+          ? data.map((c: any) => ({
+              id: c.id ?? c.pk ?? c.value ?? c._id ?? 0,
+              name: c.name ?? c.title ?? c.label ?? String(c),
+            }))
+          : [];
+        setCuisines(normalized.filter((c: any) => c.id));
       } catch (err) {
         setCuisines([]);
       } finally {
@@ -368,6 +375,7 @@ export default function Restaurant(): React.ReactElement {
           for (const masterCuisineIdRaw of formData.cuisines) {
             try {
               const masterCuisineId = String(masterCuisineIdRaw);
+              const masterCuisineIdNum = Number(masterCuisineIdRaw);
               const selectedMaster = cuisines.find(
                 (c) =>
                   String(c.id) === masterCuisineId ||
@@ -378,10 +386,19 @@ export default function Restaurant(): React.ReactElement {
                 selectedMaster?.name ||
                 selectedMaster?.title ||
                 masterCuisineId;
-              const payload = {
+              // send numeric master_cuisine and a few compatibility keys so backend accepts it
+              const payload: any = {
                 name: cuisineName,
                 restaurant: restaurantId,
-                master_cuisine: masterCuisineId,
+                master_cuisine: Number.isFinite(masterCuisineIdNum)
+                  ? masterCuisineIdNum
+                  : masterCuisineId,
+                master_cuisine_id: Number.isFinite(masterCuisineIdNum)
+                  ? masterCuisineIdNum
+                  : undefined,
+                masterCuisine: Number.isFinite(masterCuisineIdNum)
+                  ? masterCuisineIdNum
+                  : undefined,
               };
               // helpful debug while backend is being tested
               // eslint-disable-next-line no-console
@@ -1068,8 +1085,24 @@ export default function Restaurant(): React.ReactElement {
       prev.map((x) => (x.id === r.id ? { ...x, active: next } : x))
     );
     try {
-      // use PATCH for partial update to avoid DRF PUT full-object validation
-      await patchRestaurant(r.id, { active: next });
+      // build compatibility payload: boolean, numeric and status string variants
+      const payload: any = {
+        active: next,
+        is_active: next,
+        status: next ? "Active" : "Inactive",
+      };
+      // add numeric flag if backend expects ints
+      payload.is_active_int = next ? 1 : 0;
+
+      const res = await patchRestaurant(r.id, payload);
+
+      // merge server response into local state if available, otherwise set active flag
+      setRestaurants((prev) =>
+        prev.map((x) =>
+          x.id === r.id ? { ...x, ...(res || {}), active: next } : x
+        )
+      );
+
       toast.success(`Status set to ${next ? "Active" : "Inactive"}`);
     } catch (e) {
       // revert

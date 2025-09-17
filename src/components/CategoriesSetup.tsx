@@ -5,8 +5,9 @@ import {
   createCategory,
   deleteCategory,
   listCuisines,
-  listMasterCuisines,
 } from "../api/endpoints";
+
+import { updateCategory } from "../api/endpoints";
 import "./CategoriesSetup.css";
 
 interface Category {
@@ -16,7 +17,13 @@ interface Category {
   created_at?: string;
 }
 
-export default function CategoriesSetup(): React.ReactElement {
+interface Props {
+  restaurantId?: number;
+}
+
+export default function CategoriesSetup({
+  restaurantId,
+}: Props): React.ReactElement {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,6 +37,14 @@ export default function CategoriesSetup(): React.ReactElement {
   );
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
 
+  // UI state for cuisine dropdown (matches screenshot: placeholder, checkbox list, Done button)
+  const [showCuisineDropdown, setShowCuisineDropdown] = useState(false);
+  const [selectedCuisineIds, setSelectedCuisineIds] = useState<number[]>([]);
+
+  // Inline edit state for categories
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValues, setEditValues] = useState<Partial<Category>>({});
+
   const toast = useToast();
 
   // Load categories on component mount
@@ -40,9 +55,23 @@ export default function CategoriesSetup(): React.ReactElement {
 
   const loadCuisines = async () => {
     try {
-      // try to load master cuisines first, fall back to cuisines list
-      let data: any = await listMasterCuisines();
-      if (!Array.isArray(data) || data.length === 0) {
+      let data: any = [];
+      // Determine restaurant context: prop first, then try common localStorage keys
+      const storedId =
+        Number(
+          localStorage.getItem("selectedRestaurantId") ||
+            localStorage.getItem("restaurantId") ||
+            localStorage.getItem("currentRestaurantId") ||
+            "0"
+        ) || undefined;
+      const effectiveRestaurantId = restaurantId ?? storedId;
+
+      // Always use restaurant-scoped cuisines endpoint.
+      // If we have an effective restaurant id, request cuisines for that restaurant;
+      // otherwise load all cuisines from /api/cuisines/ (no master-cuisines fallback).
+      if (effectiveRestaurantId) {
+        data = await listCuisines({ restaurant: effectiveRestaurantId });
+      } else {
         data = await listCuisines();
       }
       // normalize to [{id, name}]
@@ -99,20 +128,21 @@ export default function CategoriesSetup(): React.ReactElement {
         payload.schedule = timingsValue;
       }
 
-  // resolve cuisine id from selection (either stored id or by matching name)
+      // resolve cuisine id from selection (either stored id or by matching name)
       let cuisineIdResolved: number | undefined;
       if (formData.cuisineId) cuisineIdResolved = Number(formData.cuisineId);
       else if (formData.cuisineName) {
         const found = cuisines.find(
-          (c) => c.name.toLowerCase() === formData.cuisineName.trim().toLowerCase()
+          (c) =>
+            c.name.toLowerCase() === formData.cuisineName.trim().toLowerCase()
         );
         if (found) cuisineIdResolved = found.id;
       }
 
       if (cuisineIdResolved) {
+        // send restaurant-cuisine id (backend expects cuisine/cuisine_id)
         payload.cuisine = cuisineIdResolved;
         payload.cuisine_id = cuisineIdResolved;
-        payload.master_cuisine = cuisineIdResolved;
       }
 
       console.debug("Creating category with payload", payload);
@@ -122,8 +152,13 @@ export default function CategoriesSetup(): React.ReactElement {
       // Add to local state
       setCategories((prev) => [...prev, newCategory]);
 
-  // Reset form (include cuisineId and cuisineName since they're part of formData)
-  setFormData({ categoryName: "", timings: "", cuisineId: "", cuisineName: "" });
+      // Reset form (include cuisineId and cuisineName since they're part of formData)
+      setFormData({
+        categoryName: "",
+        timings: "",
+        cuisineId: "",
+        cuisineName: "",
+      });
 
       toast.success("Category added successfully");
     } catch (error) {
@@ -154,6 +189,70 @@ export default function CategoriesSetup(): React.ReactElement {
         }
       },
     });
+  };
+
+  const startEdit = (category: Category) => {
+    // initialize timings from common backend keys
+    const initialTimings =
+      (category as any).timings ??
+      (category as any).time ??
+      (category as any).schedule ??
+      (category as any).opening_hours ??
+      (category as any).timing ??
+      (category as any).hours ??
+      (category as any).created_at ??
+      "";
+    setEditingId(category.id);
+    setEditValues({ name: category.name, timings: initialTimings });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValues({});
+  };
+
+  const saveEdit = async (id: number) => {
+    if (!editValues.name || !editValues.name.trim()) {
+      toast.warning("Category name cannot be empty");
+      return;
+    }
+    const payload: any = { name: editValues.name.trim() };
+    if (editValues.timings) payload.timings = editValues.timings;
+
+    // optimistic update
+    const prev = categories;
+    setCategories((prevCats) =>
+      prevCats.map((c) =>
+        c.id === id
+          ? ({
+              ...c,
+              name: payload.name,
+              timings: payload.timings,
+              time: payload.time,
+              timing: payload.timing,
+              opening_hours: payload.opening_hours,
+              schedule: payload.schedule,
+            } as any)
+          : c
+      )
+    );
+
+    try {
+      const res: any = await updateCategory(id, payload);
+      // merge server response if provided
+      if (res) {
+        setCategories((prevCats) =>
+          prevCats.map((c) => (c.id === id ? { ...c, ...res } : c))
+        );
+      }
+      setEditingId(null);
+      setEditValues({});
+      toast.success("Category updated");
+    } catch (err) {
+      console.error("Failed to update category", err);
+      setCategories(prev);
+      toast.error("Failed to update category");
+    }
   };
 
   const EditIcon = ({ size = 16 }: { size?: number }) => (
@@ -240,20 +339,97 @@ export default function CategoriesSetup(): React.ReactElement {
             placeholder="Enter Timings"
             className="input-timings"
           />
-          {/* Cuisine input with datalist so it looks like a text input (same styling as timings) */}
-          <input
-            list="cuisine-list"
-            name="cuisineName"
-            value={formData.cuisineName}
-            onChange={handleInputChange}
-            placeholder="Enter Cuisine"
-            className="input-timings"
-          />
-          <datalist id="cuisine-list">
-            {cuisines.map((c) => (
-              <option key={c.id} value={c.name} />
-            ))}
-          </datalist>
+          {/* Cuisine dropdown (select-like) */}
+          <div
+            className="cuisine-dropdown-wrapper"
+            style={{ position: "relative" }}
+          >
+            <button
+              type="button"
+              className="cuisine-select-btn"
+              onClick={() => setShowCuisineDropdown((s) => !s)}
+            >
+              <span style={{ color: formData.cuisineName ? "#333" : "#777" }}>
+                {formData.cuisineName && formData.cuisineName.length > 0
+                  ? formData.cuisineName
+                  : "Select cuisine"}
+              </span>
+              <span style={{ marginLeft: 8 }}>▾</span>
+            </button>
+
+            {showCuisineDropdown && (
+              <div
+                className="cuisine-dropdown-panel"
+                style={{
+                  position: "absolute",
+                  top: "110%",
+                  left: 0,
+                  width: 300,
+                  background: "#fff",
+                  border: "1px solid #ddd",
+                  borderRadius: 6,
+                  boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+                  zIndex: 50,
+                  padding: 12,
+                }}
+              >
+                <div style={{ maxHeight: 180, overflow: "auto" }}>
+                  {cuisines.map((c) => (
+                    <label
+                      key={c.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "8px 4px",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCuisineIds.includes(c.id)}
+                        onChange={() => {
+                          setSelectedCuisineIds((prev) =>
+                            prev.includes(c.id)
+                              ? prev.filter((x) => x !== c.id)
+                              : [...prev, c.id]
+                          );
+                        }}
+                      />
+                      <span style={{ color: "#444" }}>{c.name}</span>
+                    </label>
+                  ))}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="cuisine-done-btn"
+                    onClick={() => {
+                      // set first selected as cuisineId (backwards-compatible) and join names
+                      const firstId = selectedCuisineIds[0];
+                      const names = cuisines
+                        .filter((c) => selectedCuisineIds.includes(c.id))
+                        .map((c) => c.name)
+                        .join(", ");
+                      setFormData((prev) => ({
+                        ...prev,
+                        cuisineId: firstId ? String(firstId) : "",
+                        cuisineName: names,
+                      }));
+                      setShowCuisineDropdown(false);
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Pagination Info */}
@@ -299,32 +475,82 @@ export default function CategoriesSetup(): React.ReactElement {
               <tr key={category.id}>
                 <td>
                   <div className="action-icons">
-                    <button
-                      className="action-btn edit-btn"
-                      title="Edit"
-                      onClick={() =>
-                        toast.info("Edit functionality coming soon")
-                      }
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      className="action-btn delete-btn"
-                      title="Delete"
-                      onClick={() => handleDelete(category.id)}
-                      disabled={deletingIds.has(category.id)}
-                      style={
-                        deletingIds.has(category.id)
-                          ? { opacity: 0.5, cursor: "not-allowed" }
-                          : undefined
-                      }
-                    >
-                      {deletingIds.has(category.id) ? "..." : <DeleteIcon />}
-                    </button>
+                    {editingId === category.id ? (
+                      <>
+                        <button
+                          className="action-btn edit-btn"
+                          title="Save"
+                          onClick={() => saveEdit(category.id)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="action-btn delete-btn"
+                          title="Cancel"
+                          onClick={() => cancelEdit()}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className="action-btn edit-btn"
+                          title="Edit"
+                          onClick={() => startEdit(category)}
+                        >
+                          <EditIcon />
+                        </button>
+                        <button
+                          className="action-btn delete-btn"
+                          title="Delete"
+                          onClick={() => handleDelete(category.id)}
+                          disabled={deletingIds.has(category.id)}
+                          style={
+                            deletingIds.has(category.id)
+                              ? { opacity: 0.5, cursor: "not-allowed" }
+                              : undefined
+                          }
+                        >
+                          {deletingIds.has(category.id) ? (
+                            "..."
+                          ) : (
+                            <DeleteIcon />
+                          )}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
-                <td>{category.name}</td>
-                <td>{resolveTimings(category)}</td>
+                <td>
+                  {editingId === category.id ? (
+                    <input
+                      value={String(editValues.name ?? category.name)}
+                      onChange={(e) =>
+                        setEditValues((s) => ({ ...s, name: e.target.value }))
+                      }
+                    />
+                  ) : (
+                    category.name
+                  )}
+                </td>
+                <td>
+                  {editingId === category.id ? (
+                    <input
+                      value={String(
+                        editValues.timings ?? category.created_at ?? ""
+                      )}
+                      onChange={(e) =>
+                        setEditValues((s) => ({
+                          ...s,
+                          timings: e.target.value,
+                        }))
+                      }
+                    />
+                  ) : (
+                    resolveTimings(category)
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

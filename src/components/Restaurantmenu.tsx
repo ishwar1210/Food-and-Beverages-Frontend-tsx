@@ -304,14 +304,39 @@ export default function RestaurantMenu(): React.ReactElement {
     try {
       const item = next.find((m) => m.id === id);
       if (!item) return;
-      // backend may expect boolean like `is_active` or `status` string — try both
-      await patchItem(id, {
+      // backend compatibility: send both `status` and `is_active`.
+      // Some backends expect 0/1 or true/false; we'll prefer boolean and also send numeric if needed.
+      const payload: any = {
         status: item.status,
         is_active: item.status === "active",
-      });
+      };
+      // include numeric flag for backends using 0/1
+      payload.is_active_int = item.status === "active" ? 1 : 0;
+      console.debug("PATCHing status for item", id, payload);
+      const res: any = await patchItem(id, payload);
+      console.debug("Status update response", res);
+      // If server returned authoritative status fields, merge them back
+      if (res) {
+        setMenuItems((prevItems) =>
+          prevItems.map((m) =>
+            m.id === id
+              ? ({
+                  ...m,
+                  status:
+                    (res.status as "active" | "inactive") ||
+                    (res.is_active
+                      ? "active"
+                      : res.is_active === false
+                      ? "inactive"
+                      : m.status),
+                } as MenuItem)
+              : m
+          )
+        );
+      }
     } catch (err) {
       console.error("Failed to update item status", err);
-      // rollback
+      // rollback optimistic update
       setMenuItems(prev);
     }
   };
@@ -413,31 +438,6 @@ export default function RestaurantMenu(): React.ReactElement {
         <button className="add-btn" onClick={handleAdd}>
           Add
         </button>
-        <button
-          className="add-btn"
-          onClick={() => document.getElementById("menu-import-input")?.click()}
-          type="button"
-        >
-          Import
-        </button>
-        <input
-          id="menu-import-input"
-          type="file"
-          accept=".csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-          style={{ display: "none" }}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-              const text = evt.target?.result as string;
-              console.log("Imported file content length:", text?.length || 0);
-              // TODO: parse and update menuItems
-            };
-            reader.readAsText(file);
-            e.target.value = ""; // reset
-          }}
-        />
 
         <div className="pagination-info">1-1 of 1</div>
 
