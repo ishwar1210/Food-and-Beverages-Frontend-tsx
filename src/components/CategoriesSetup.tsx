@@ -120,11 +120,12 @@ export default function CategoriesSetup({
       // Build payload with multiple possible timing keys to match backend expectations
       const payload: any = { name: formData.categoryName.trim() };
       if (timingsValue) {
+        // primary timing key the backend expects
+        payload.timing = timingsValue;
+        // compatibility keys
         payload.timings = timingsValue;
         payload.time = timingsValue;
-        payload.timing = timingsValue;
         payload.opening_hours = timingsValue;
-        // also include a structured field if backend expects object
         payload.schedule = timingsValue;
       }
 
@@ -140,7 +141,9 @@ export default function CategoriesSetup({
       }
 
       if (cuisineIdResolved) {
-        // send restaurant-cuisine id (backend expects cuisine/cuisine_id)
+        // send restaurant-cuisine id(s) as an array under `cuisines` (preferred)
+        payload.cuisines = [cuisineIdResolved];
+        // also include singular keys for compatibility
         payload.cuisine = cuisineIdResolved;
         payload.cuisine_id = cuisineIdResolved;
       }

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { listCuisines } from "../api/endpoints";
+import { listCuisines, listCategories } from "../api/endpoints";
 import "./SubcategoriesSetup.css";
 
 interface SubCategory {
-  id: number;
+  id: number | string;
   categoryName: string;
-  subCategories: string; // single subcategory name for now
+  cuisineName: string; // one cuisine name (we render one row per relation)
 }
 
 export default function SubcategoriesSetup(): React.ReactElement {
@@ -16,50 +16,99 @@ export default function SubcategoriesSetup(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Load cuisines from API
+  // Load cuisines and categories from API and build rows for each category-cuisine relation
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await listCuisines();
-        console.debug("[SubcategoriesSetup] raw cuisines response", data);
+        const [rawCuisines, rawCategories] = await Promise.all([
+          listCuisines(),
+          listCategories(),
+        ]);
 
         if (!mounted) return;
 
-        // ✅ Safe mapping (works for array or object with results[])
-        const rawArray = Array.isArray(data)
-          ? data
-          : Array.isArray((data as any)?.results)
-          ? (data as any).results
+        // Normalize cuisines into a map id -> name
+        const cuisineArray = Array.isArray(rawCuisines)
+          ? rawCuisines
+          : Array.isArray((rawCuisines as any)?.results)
+          ? (rawCuisines as any).results
           : [];
 
-        const mapped = rawArray.map((d: any, idx: number) => ({
-          id:
-            (typeof d.id === "number" ? d.id : Number(d.id)) ||
-            (typeof d._id === "number" ? d._id : Number(d._id)) ||
-            idx + 1,
-          categoryName:
-            typeof d.master_cuisine_name === "string"
-              ? d.master_cuisine_name
-              : typeof d.master_cuisine === "string"
-              ? d.master_cuisine
-              : typeof d.category === "string"
-              ? d.category
-              : "",
-          subCategories:
-            typeof d.name === "string"
-              ? d.name
-              : typeof d.cuisine_name === "string"
-              ? d.cuisine_name
-              : "",
-        }));
+        const cuisineMap = new Map<number | string, string>();
+        cuisineArray.forEach((c: any, idx: number) => {
+          const id =
+            (typeof c.id === "number" ? c.id : Number(c.id)) ||
+            (typeof c._id === "number" ? c._id : Number(c._id)) ||
+            idx + 1;
+          const name =
+            typeof c.name === "string"
+              ? c.name
+              : typeof c.cuisine_name === "string"
+              ? c.cuisine_name
+              : typeof c.master_cuisine_name === "string"
+              ? c.master_cuisine_name
+              : typeof c.master_cuisine === "string"
+              ? c.master_cuisine
+              : "";
+          cuisineMap.set(id, name);
+        });
 
-        console.debug("[SubcategoriesSetup] mapped cuisines", mapped);
-        setSubCategories(mapped);
+        // Normalize categories
+        const categoryArray = Array.isArray(rawCategories)
+          ? rawCategories
+          : Array.isArray((rawCategories as any)?.results)
+          ? (rawCategories as any).results
+          : [];
+
+        // Build one row per category-cuisine relation. If category has multiple cuisines, create multiple rows.
+        const rows: SubCategory[] = [];
+        categoryArray.forEach((cat: any) => {
+          const catId = cat?.id ?? cat?.pk ?? Math.random();
+          const catName =
+            typeof cat.name === "string"
+              ? cat.name
+              : typeof cat.title === "string"
+              ? cat.title
+              : typeof cat.category === "string"
+              ? cat.category
+              : "";
+
+          // Try different shapes for cuisines field
+          let cuisineIds: Array<number | string> = [];
+          if (Array.isArray(cat.cuisines)) {
+            cuisineIds = cat.cuisines.map((c: any) =>
+              typeof c === "object" ? c.id ?? c.pk ?? c : c
+            );
+          } else if (Array.isArray(cat.master_cuisines)) {
+            cuisineIds = cat.master_cuisines.map((c: any) =>
+              typeof c === "object" ? c.id ?? c.pk ?? c : c
+            );
+          } else if (cat.cuisine || cat.cuisine_id || cat.master_cuisine) {
+            const single = cat.cuisine ?? cat.cuisine_id ?? cat.master_cuisine;
+            cuisineIds = [single];
+          }
+
+          if (cuisineIds.length === 0) {
+            // No cuisine relation, still show the category with empty cuisine
+            rows.push({ id: catId, categoryName: catName, cuisineName: "-" });
+          } else {
+            cuisineIds.forEach((cid) => {
+              const name = cuisineMap.get(cid) ?? String(cid ?? "-");
+              rows.push({
+                id: `${catId}-${cid}`,
+                categoryName: catName,
+                cuisineName: name,
+              });
+            });
+          }
+        });
+
+        setSubCategories(rows);
       } catch (e: any) {
-        if (mounted) setError(e?.message || "Failed to load cuisines");
+        if (mounted) setError(e?.message || "Failed to load data");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -75,19 +124,19 @@ export default function SubcategoriesSetup(): React.ReactElement {
     const newSubCategory: SubCategory = {
       id: Date.now(),
       categoryName: categoryName.trim(),
-      subCategories: subCategoryName.trim(),
+      cuisineName: subCategoryName.trim(),
     };
     setSubCategories((prev) => [...prev, newSubCategory]);
     setCategoryName("");
     setSubCategoryName("");
   };
 
-  const handleEdit = (id: number) => {
+  const handleEdit = (id: number | string) => {
     console.log("Edit sub category:", id);
     // TODO: Implement edit functionality
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: number | string) => {
     setSubCategories((prev) => prev.filter((item) => item?.id !== id));
   };
 
@@ -97,8 +146,7 @@ export default function SubcategoriesSetup(): React.ReactElement {
     const q = searchTerm.toLowerCase();
     const category =
       typeof item.categoryName === "string" ? item.categoryName : "";
-    const subCat =
-      typeof item.subCategories === "string" ? item.subCategories : "";
+    const subCat = typeof item.cuisineName === "string" ? item.cuisineName : "";
     return (
       category.toLowerCase().includes(q) || subCat.toLowerCase().includes(q)
     );
@@ -264,7 +312,7 @@ export default function SubcategoriesSetup(): React.ReactElement {
                     </div>
                   </td>
                   <td>{item.categoryName || "-"}</td>
-                  <td>{item.subCategories || "-"}</td>
+                  <td>{item.cuisineName || "-"}</td>
                 </tr>
               ))
             )}
