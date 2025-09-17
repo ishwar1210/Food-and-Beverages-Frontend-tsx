@@ -67,6 +67,9 @@ export const createRestaurant = (payload: any) =>
   create("/restaurants/", payload);
 export const updateRestaurant = (id: number, payload: any) =>
   update(`/restaurants/${id}/`, payload);
+// Partial update helper (PATCH) — use this for single-field updates like `is_active`
+export const patchRestaurant = (id: number, payload: any) =>
+  update(`/restaurants/${id}/`, payload, "patch");
 export const deleteRestaurant = (id: number) => destroy(`/restaurants/${id}/`);
 
 // ---- (Deprecated) Schedules ----
@@ -130,6 +133,9 @@ export const retrieveItem = (id: number) => retrieve(`/items/${id}/`);
 export const createItem = (payload: any) => create("/items/", payload);
 export const updateItem = (id: number, payload: any) =>
   update(`/items/${id}/`, payload);
+// Partial update helper (PATCH) — use this for single-field updates like `status` or `is_active`
+export const patchItem = (id: number, payload: any) =>
+  update(`/items/${id}/`, payload, "patch");
 export const deleteItem = (id: number) => destroy(`/items/${id}/`);
 
 // ---- Customers ----

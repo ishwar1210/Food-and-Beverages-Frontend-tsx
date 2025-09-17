@@ -17,6 +17,7 @@ import {
   uploadOtherFile,
   deleteRestaurant,
   updateRestaurant,
+  patchRestaurant,
 } from "../api/endpoints";
 import "./Addestaurant.css";
 import Viewrestaurant from "./Viewrestaurant";
@@ -185,8 +186,7 @@ export default function Restaurant(): React.ReactElement {
         const data = await listMasterCuisines();
         setCuisines(Array.isArray(data) ? data : []);
       } catch (err) {
-        setCuisines([
-        ]);
+        setCuisines([]);
       } finally {
       }
     };
@@ -1068,7 +1068,8 @@ export default function Restaurant(): React.ReactElement {
       prev.map((x) => (x.id === r.id ? { ...x, active: next } : x))
     );
     try {
-      await updateRestaurant(r.id, { active: next });
+      // use PATCH for partial update to avoid DRF PUT full-object validation
+      await patchRestaurant(r.id, { active: next });
       toast.success(`Status set to ${next ? "Active" : "Inactive"}`);
     } catch (e) {
       // revert

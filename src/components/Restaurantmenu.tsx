@@ -1,4 +1,11 @@
 import React, { useEffect, useState } from "react";
+import {
+  listItems,
+  createItem,
+  listMasterCuisines,
+  listCuisines,
+  patchItem,
+} from "../api/endpoints";
 import "./Restaurantmenu.css";
 
 interface MenuItem {
@@ -19,35 +26,153 @@ export default function RestaurantMenu(): React.ReactElement {
   const [categoryName, setCategoryName] = useState("");
   const [timings, setTimings] = useState("");
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [rawResponse, setRawResponse] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showRawColumn, setShowRawColumn] = useState(false);
+  const [cuisineMap, setCuisineMap] = useState<Map<number, string>>(new Map());
+
+  // Load cuisines for lookup
+  useEffect(() => {
+    const loadCuisines = async () => {
+      try {
+        // Try master cuisines first, then regular cuisines
+        let cuisines = await listMasterCuisines();
+        if (!Array.isArray(cuisines) || cuisines.length === 0) {
+          cuisines = await listCuisines();
+        }
+
+        const map = new Map<number, string>();
+        if (Array.isArray(cuisines)) {
+          cuisines.forEach((c: any) => {
+            const id = c.id ?? c.pk ?? c.cuisine_id;
+            const name = c.name ?? c.title ?? c.cuisine_name ?? String(c);
+            if (id && name) map.set(Number(id), String(name));
+          });
+        }
+        setCuisineMap(map);
+      } catch (e) {
+        console.debug("Failed to load cuisines for lookup", e);
+      }
+    };
+    loadCuisines();
+  }, []);
 
   // Sample data - replace with actual API calls
   useEffect(() => {
-    // This would be replaced with actual API call
-    setMenuItems([
-      // Add sample data here if needed
-    ]);
-  }, []);
+    // Only load items after cuisines are loaded
+    if (cuisineMap.size === 0) return;
+
+    // Load items from backend
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await listItems();
+        console.debug("listItems raw response", data);
+        setRawResponse(data);
+        // normalize each item into our UI shape so table columns render reliably
+        const normalized: MenuItem[] = (Array.isArray(data) ? data : []).map(
+          (it: any) => ({
+            id: it.id ?? it.pk ?? it.item_id ?? Date.now(),
+            products:
+              it.products ??
+              it.item_name ??
+              it.name ??
+              it.title ??
+              it.product ??
+              "",
+            masterPrice: Number(
+              it.master_price ?? it.masterPrice ?? it.price ?? 0
+            ),
+            displayPrice: Number(
+              it.display_price ?? it.displayPrice ?? it.price ?? 0
+            ),
+            category:
+              (typeof it.category === "string" && it.category) ||
+              (it.category && (it.category.name || it.category.title)) ||
+              it.category_name ||
+              "",
+            // map cuisine from database cuisine field, lookup name if ID
+            subCategory: (() => {
+              const cuisineId =
+                it.cuisine ?? it.cuisine_id ?? it.master_cuisine;
+              if (cuisineId && cuisineMap.has(Number(cuisineId))) {
+                return cuisineMap.get(Number(cuisineId)) || "";
+              }
+              return (
+                it.cuisine_name ??
+                (it.cuisine && (it.cuisine.name || it.cuisine.title)) ??
+                it.master_cuisine_name ??
+                it.sub_category ??
+                it.subCategory ??
+                it.sub_category_name ??
+                ""
+              );
+            })(),
+            // normalize menu type from item_type field
+            menuType:
+              it.item_type ??
+              it.menu_type ??
+              (it.menu_type &&
+                typeof it.menu_type === "object" &&
+                (it.menu_type.name || it.menu_type.title)) ??
+              it.menu_type_name ??
+              it.menuType ??
+              it.menuTypeName ??
+              "",
+            discount: Number(it.discount ?? 0),
+            createdOn: it.created_on ?? it.createdAt ?? it.created_at ?? "",
+            updatedOn: it.updated_on ?? it.updatedAt ?? it.updated_at ?? "",
+            status: (it.status ??
+              (it.is_active ? "active" : undefined) ??
+              "inactive") as "active" | "inactive",
+          })
+        );
+        setMenuItems(normalized);
+      } catch (e: any) {
+        console.error("Failed to load items", e);
+        setMenuItems([]);
+        setError((e && e.toString()) || "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [cuisineMap]);
 
   const handleAdd = () => {
     if (categoryName.trim() && timings.trim()) {
-      const newMenuItem: MenuItem = {
-        id: Date.now(),
+      const payload: any = {
         products: categoryName.trim(),
-        masterPrice: 0,
-        displayPrice: 0,
-        category: "",
-        subCategory: "",
-        menuType: timings.trim(),
-        discount: 0,
-        createdOn: new Date().toLocaleDateString(),
-        updatedOn: new Date().toLocaleDateString(),
-        status: "active",
+        menu_type: timings.trim(),
+        // add minimal required fields — backend may require more
       };
-
-      setMenuItems((prev) => [...prev, newMenuItem]);
-      setCategoryName("");
-      setTimings("");
+      (async () => {
+        try {
+          const created = await createItem(payload);
+          // Try to normalize created item to MenuItem shape where possible
+          const item: MenuItem = {
+            id: created.id ?? Date.now(),
+            products: created.products ?? created.name ?? categoryName.trim(),
+            masterPrice: created.master_price ?? created.masterPrice ?? 0,
+            displayPrice: created.display_price ?? created.displayPrice ?? 0,
+            category: created.category ?? "",
+            subCategory: created.sub_category ?? created.subCategory ?? "",
+            menuType: created.menu_type ?? created.menuType ?? timings.trim(),
+            discount: created.discount ?? 0,
+            createdOn: created.created_on ?? new Date().toLocaleDateString(),
+            updatedOn: created.updated_on ?? new Date().toLocaleDateString(),
+            status: created.status ?? "active",
+          };
+          setMenuItems((prev) => [...prev, item]);
+          setCategoryName("");
+          setTimings("");
+        } catch (err) {
+          console.error("Failed to create item", err);
+        }
+      })();
     }
   };
 
@@ -60,12 +185,42 @@ export default function RestaurantMenu(): React.ReactElement {
     setMenuItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const filteredMenuItems = menuItems.filter(
-    (item) =>
-      item.products.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.subCategory.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Toggle status active <-> inactive (optimistic UI with rollback on error)
+  const handleToggleStatus = async (id: number) => {
+    const prev = menuItems;
+    const next = menuItems.map((m) =>
+      m.id === id
+        ? {
+            ...m,
+            status: (m.status === "active" ? "inactive" : "active") as
+              | "active"
+              | "inactive",
+          }
+        : m
+    );
+    setMenuItems(next);
+    try {
+      const item = next.find((m) => m.id === id);
+      if (!item) return;
+      // backend may expect boolean like `is_active` or `status` string — try both
+      await patchItem(id, {
+        status: item.status,
+        is_active: item.status === "active",
+      });
+    } catch (err) {
+      console.error("Failed to update item status", err);
+      // rollback
+      setMenuItems(prev);
+    }
+  };
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    const term = searchTerm.toLowerCase();
+    const prod = (item.products || "").toString().toLowerCase();
+    const cat = (item.category || "").toString().toLowerCase();
+    const sub = (item.subCategory || "").toString().toLowerCase();
+    return prod.includes(term) || cat.includes(term) || sub.includes(term);
+  });
 
   // Icon components
   const SearchIcon = ({ size = 16 }: { size?: number }) => (
@@ -121,6 +276,24 @@ export default function RestaurantMenu(): React.ReactElement {
     </svg>
   );
 
+  // Format ISO/date-like strings to `YYYY-MM-DD HH:MM:SS` (local time)
+  const formatDateTime = (val: string) => {
+    if (!val) return "";
+    try {
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return String(val);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      const ss = String(d.getSeconds()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+    } catch (e) {
+      return String(val);
+    }
+  };
+
   return (
     <div className="restaurant-menu-container" style={{ paddingLeft: "40px" }}>
       <div className="restaurant-menu-header">
@@ -166,6 +339,18 @@ export default function RestaurantMenu(): React.ReactElement {
 
         <div className="pagination-info">1-1 of 1</div>
 
+        <div style={{ marginLeft: 12 }}>
+          <label style={{ fontSize: 12, color: "#555" }}>
+            <input
+              type="checkbox"
+              checked={showRawColumn}
+              onChange={(e) => setShowRawColumn(e.target.checked)}
+              style={{ marginRight: 6 }}
+            />
+            Show raw JSON
+          </label>
+        </div>
+
         <div className="pagination-controls">
           <button className="pagination-btn">‹</button>
           <button className="pagination-btn">›</button>
@@ -181,12 +366,13 @@ export default function RestaurantMenu(): React.ReactElement {
               <th>Master Price</th>
               <th>Display Price</th>
               <th>Category</th>
-              <th>Sub Category</th>
+              <th>Cuisine</th>
               <th>Menu Type</th>
               <th>Discount</th>
               <th>Created On</th>
               <th>Updated On</th>
               <th>Status</th>
+              {showRawColumn && <th>Raw</th>}
             </tr>
           </thead>
           <tbody>
@@ -227,13 +413,52 @@ export default function RestaurantMenu(): React.ReactElement {
                   <td>{item.subCategory}</td>
                   <td>{item.menuType}</td>
                   <td>{item.discount}%</td>
-                  <td>{item.createdOn}</td>
-                  <td>{item.updatedOn}</td>
+                  <td>{formatDateTime(item.createdOn)}</td>
+                  <td>{formatDateTime(item.updatedOn)}</td>
                   <td>
-                    <span className={`status ${item.status}`}>
-                      {item.status}
-                    </span>
+                    <label
+                      className="status-toggle"
+                      title={
+                        item.status === "active" ? "Deactivate" : "Activate"
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={item.status === "active"}
+                        onChange={() => handleToggleStatus(item.id)}
+                        aria-label={
+                          item.status === "active" ? "Deactivate" : "Activate"
+                        }
+                      />
+                      <span className="switch">
+                        <span className="knob" />
+                      </span>
+                    </label>
                   </td>
+                  {showRawColumn && (
+                    <td
+                      style={{
+                        fontSize: 12,
+                        whiteSpace: "pre-wrap",
+                        maxWidth: 300,
+                      }}
+                    >
+                      <pre style={{ margin: 0, fontSize: 11 }}>
+                        {JSON.stringify(
+                          (Array.isArray(rawResponse)
+                            ? rawResponse.find(
+                                (r: any) =>
+                                  r.id === item.id ||
+                                  r.pk === item.id ||
+                                  r.item_id === item.id
+                              )
+                            : rawResponse) || {},
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </td>
+                  )}
                 </tr>
               ))
             )}

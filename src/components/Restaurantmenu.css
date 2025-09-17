@@ -206,6 +206,7 @@
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
+  display: inline-block; /* ensure it keeps space but can be empty */
 }
 
 .status.active {
@@ -216,6 +217,46 @@
 .status.inactive {
   background-color: #f8d7da;
   color: #721c24;
+}
+
+/* Toggle switch (pill) matching design */
+.status-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+.status-toggle input {
+  /* visually hidden but accessible */
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.status-toggle .switch {
+  width: 36px;
+  height: 20px;
+  background: #ff4d4f; /* red background when ON */
+  border-radius: 20px;
+  position: relative;
+  transition: background 150ms ease;
+  display: inline-block;
+}
+.status-toggle .knob {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: transform 150ms ease;
+}
+.status-toggle input:checked + .switch {
+  background: #4caf50; /* green when checked */
+}
+.status-toggle input:checked + .switch .knob {
+  transform: translateX(16px);
 }
 
 /* Responsive Design */
