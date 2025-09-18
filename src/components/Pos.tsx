@@ -27,6 +27,13 @@ export default function Pos(): React.ReactElement {
   const [items, setItems] = useState<Item[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemsError, setItemsError] = useState<string | null>(null);
+  // Track selected order type so the clicked button remains active
+  const [selectedOrderType, setSelectedOrderType] = useState<
+    "dine" | "delivery" | "pickup"
+  >("dine");
+  // Search inputs state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchCode, setSearchCode] = useState("");
 
   const handleCuisineSelect = (cuisine: Cuisine | null) => {
     setSelectedCuisine(cuisine);
@@ -153,8 +160,24 @@ export default function Pos(): React.ReactElement {
   };
 
   // Partition items into veg and non-veg lists using normalized itemType
-  const vegItems = items.filter((item) => item.itemType === "veg");
-  const nonVegItems = items.filter((item) => item.itemType === "non-veg");
+  const vegItemsAll = items.filter((item) => item.itemType === "veg");
+  const nonVegItemsAll = items.filter((item) => item.itemType === "non-veg");
+
+  // Apply search filters (by name and by code). Code field may be item.code or item.sku
+  const matchesSearch = (item: Item) => {
+    const q = searchTerm.trim().toLowerCase();
+    const codeQ = searchCode.trim().toLowerCase();
+    const name = (item.name || "").toLowerCase();
+    const code = ((item as any).code ?? (item as any).sku ?? "")
+      .toString()
+      .toLowerCase();
+    if (q && !name.includes(q)) return false;
+    if (codeQ && !code.includes(codeQ)) return false;
+    return true;
+  };
+
+  const vegItems = vegItemsAll.filter(matchesSearch);
+  const nonVegItems = nonVegItemsAll.filter(matchesSearch);
 
   return (
     <div className="pos-container">
@@ -162,37 +185,37 @@ export default function Pos(): React.ReactElement {
       <Possubcategory onCuisineSelect={handleCuisineSelect} />
 
       <div className="pos-main-content">
-        {/* Search Section */}
-        <div className="pos-search-section">
-          <div className="pos-search-bar">
-            <div className="pos-search-inputs">
-              <div className="pos-search-box">
-                <input
-                  type="text"
-                  placeholder="Search Item"
-                  className="pos-search-input"
-                />
-              </div>
-              <div className="pos-search-box">
-                <input
-                  type="text"
-                  placeholder="Search Code"
-                  className="pos-search-input"
-                />
-              </div>
-            </div>
-
-            <div className="pos-order-type">
-              <button className="pos-order-btn active">Dine In</button>
-              <button className="pos-order-btn">Delivery</button>
-              <button className="pos-order-btn">Pick Up</button>
-            </div>
-          </div>
-        </div>
-
         <div className="pos-content-wrapper">
           {/* Items Grid */}
           <div className="pos-items-section">
+            {/* Moved search bar into items section (above category tabs) */}
+            <div className="pos-search-section" style={{ padding: "8px 12px" }}>
+              <div className="pos-search-bar" style={{ width: "100%" }}>
+                <div className="pos-search-left">
+                  <div className="pos-search-inputs">
+                    <div className="pos-search-box">
+                      <input
+                        type="text"
+                        placeholder="Search Item"
+                        className="pos-search-input"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <div className="pos-search-box">
+                      <input
+                        type="text"
+                        placeholder="Search Code"
+                        className="pos-search-input"
+                        value={searchCode}
+                        onChange={(e) => setSearchCode(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="pos-category-tabs" style={{ padding: "8px 12px" }}>
               <div className="pos-category-tab">Veg</div>
               <div className="pos-category-tab">Non Veg</div>
@@ -240,6 +263,45 @@ export default function Pos(): React.ReactElement {
 
           {/* Cart/Checkout Section */}
           <div className="pos-cart-section">
+            {/* Order type buttons moved into cart area as requested */}
+            <div
+              className="pos-order-panel"
+              style={{
+                padding: "8px 12px",
+                display: "flex",
+                gap: 8,
+                justifyContent: "center",
+              }}
+            >
+              <button
+                className={`pos-order-btn ${
+                  selectedOrderType === "dine" ? "active" : ""
+                }`}
+                onClick={() => setSelectedOrderType("dine")}
+                aria-pressed={selectedOrderType === "dine"}
+              >
+                Dine In
+              </button>
+              <button
+                className={`pos-order-btn ${
+                  selectedOrderType === "delivery" ? "active" : ""
+                }`}
+                onClick={() => setSelectedOrderType("delivery")}
+                aria-pressed={selectedOrderType === "delivery"}
+              >
+                Delivery
+              </button>
+              <button
+                className={`pos-order-btn ${
+                  selectedOrderType === "pickup" ? "active" : ""
+                }`}
+                onClick={() => setSelectedOrderType("pickup")}
+                aria-pressed={selectedOrderType === "pickup"}
+              >
+                Pick Up
+              </button>
+            </div>
+
             <div className="pos-cart-header">
               <span></span>
               <span>Items</span>

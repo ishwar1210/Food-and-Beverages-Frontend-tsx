@@ -25,12 +25,21 @@
 
 .pos-search-bar {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 980px;
+  background: transparent;
+}
+
+.pos-search-left {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  width: 720px; /* fixed width like the screenshot */
+  flex: 1 1 auto;
   background: #f3f4f6;
   padding: 8px;
   border-radius: 10px;
-  align-items: center;
 }
 
 .pos-search-inputs {
@@ -61,36 +70,42 @@
 
 .pos-order-type {
   display: flex;
-  gap: 0;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  gap: 8px;
+  margin-left: 12px;
 }
 
-.pos-order-btn {
-  padding: 10px 18px;
-  border: none;
-  background: #7c8fa6;
-  color: #ffffff;
+.pos-order-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.pos-order-panel .pos-order-btn {
+  padding: 8px 14px;
+  min-width: 96px;
+  border: 1px solid #cdd6de;
+  background: #e9eef4;
+  color: #2b4756;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-  border-right: 1px solid #6a7d94;
-  position: relative;
+  font-weight: 600;
+  transition: all 0.12s ease-in-out;
+  margin: 0 6px;
+  border-radius: 8px;
+  box-shadow: none;
 }
 
-.pos-order-btn:last-child {
-  border-right: none;
+.pos-order-panel .pos-order-btn:hover:not(.active) {
+  background: #dfe8ef;
 }
 
-.pos-order-btn.active {
+.pos-order-panel .pos-order-btn.active {
   background: #5a6c7d;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.pos-order-btn:hover:not(.active) {
-  background: #6a7d94;
+  color: #ffffff;
+  border-color: #5a6c7d;
 }
 
 /* Content Wrapper */
@@ -155,11 +170,13 @@
 
 .pos-items-column {
   display: grid;
-  grid-template-columns: repeat(2, minmax(140px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
   height: 100%;
-  overflow-y: auto; /* independent scrolling for each column */
-  align-self: stretch; /* ensure columns stretch to same height */
+  overflow-y: auto;
+  align-self: stretch;
+  padding: 4px;
+  align-items: start;
 }
 
 .pos-item-card {
@@ -167,14 +184,21 @@
   background: #ffffff;
   border: 1px solid #ececec;
   border-radius: 8px;
-  padding: 8px 12px 8px 22px; /* space for the left stripe */
+  padding: 8px 12px 8px 22px;
   text-align: left;
   cursor: pointer;
   transition: all 0.12s;
+
+  /* Fixed dimensions for uniform sizing and alignment */
+  height: 56px;
   min-height: 56px;
+  max-height: 56px;
+  width: 100%;
+
   display: flex;
   align-items: center;
   gap: 12px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.06);
 }
 
 .pos-item-card.non-veg {
@@ -205,6 +229,13 @@
   font-size: 13px;
   font-weight: 500;
   color: #333;
+
+  /* Ensure text doesn't overflow and maintains consistent sizing */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  line-height: 1.2;
 }
 
 /* left colored stripe for veg/non-veg */
@@ -223,11 +254,6 @@
 }
 .pos-item-card.non-veg::before {
   background: #dc3545; /* red */
-}
-
-/* make cards look slightly elevated like the screenshot */
-.pos-item-card {
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.06);
 }
 
 /* Cart Section */
@@ -440,6 +466,17 @@
   .pos-cart-section {
     max-width: none;
   }
+
+  .pos-item-card {
+    height: 52px;
+    min-height: 52px;
+    max-height: 52px;
+    padding: 8px 12px 8px 20px;
+  }
+
+  .pos-item-name {
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -456,6 +493,24 @@
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 8px;
     padding: 12px;
+  }
+
+  .pos-items-column {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    padding: 2px;
+    align-items: start;
+  }
+
+  .pos-item-card {
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    padding: 6px 10px 6px 18px;
+  }
+
+  .pos-item-name {
+    font-size: 11px;
   }
 
   .pos-action-buttons {
