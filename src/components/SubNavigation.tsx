@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./SubNavigation.css";
+import Pos from "./Pos";
 
 interface Props {
   onChange?: (index: number) => void;
@@ -30,6 +31,12 @@ export default function SubNavigation({ onChange, initialIndex = 0 }: Props) {
           </div>
         ))}
       </div>
+      {/* Show POS subcategory navigation and POS UI when POS tab is active */}
+      {activeSubIndex === 0 && (
+        <>
+          <Pos />
+        </>
+      )}
     </div>
   );
 }

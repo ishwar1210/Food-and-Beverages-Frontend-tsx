@@ -1,0 +1,112 @@
+/* POS Subcategory Navigation Styles */
+.pos-subcategory-container {
+  width: 100%;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: 0;
+  margin: 0;
+}
+
+.pos-subcategory-nav {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 8px 16px;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.pos-subcategory-nav::-webkit-scrollbar {
+  height: 4px;
+}
+
+.pos-subcategory-nav::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.pos-subcategory-nav::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+}
+
+.pos-subcategory-nav::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.pos-subcategory-item {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  transition: all 0.2s ease-in-out;
+  text-align: center;
+  min-width: 80px;
+}
+
+.pos-subcategory-item:hover {
+  background: #e9ecef;
+  border-color: #ced4da;
+  color: #212529;
+}
+
+.pos-subcategory-item.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.pos-subcategory-item.active:hover {
+  background: #0056b3;
+  border-color: #0056b3;
+}
+
+/* Loading and Error States */
+.pos-subcategory-loading,
+.pos-subcategory-error {
+  padding: 16px;
+  text-align: center;
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.pos-subcategory-error {
+  color: #dc3545;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin: 8px 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .pos-subcategory-nav {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .pos-subcategory-item {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-width: 70px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pos-subcategory-nav {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .pos-subcategory-item {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 60px;
+  }
+}
