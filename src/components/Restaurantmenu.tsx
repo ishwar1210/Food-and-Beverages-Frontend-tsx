@@ -37,10 +37,10 @@ export default function RestaurantMenu(): React.ReactElement {
   useEffect(() => {
     const loadCuisines = async () => {
       try {
-        // Try master cuisines first, then regular cuisines
-        let cuisines = await listMasterCuisines();
+        // Prefer restaurant-scoped cuisines first, then fall back to master cuisines
+        let cuisines = await listCuisines();
         if (!Array.isArray(cuisines) || cuisines.length === 0) {
-          cuisines = await listCuisines();
+          cuisines = await listMasterCuisines();
         }
 
         const map = new Map<number, string>();

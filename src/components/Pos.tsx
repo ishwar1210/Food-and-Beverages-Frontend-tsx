@@ -152,11 +152,68 @@ export default function Pos(): React.ReactElement {
     }
   };
 
+  const removeCartItem = (itemId: number) => {
+    setCartItems((prev) => prev.filter((it) => it.id !== itemId));
+  };
+
   const getTotalPrice = () => {
     return cartItems.reduce(
       (total, item) => total + item.price * item.quantity,
       0
     );
+  };
+
+  // Other payment modal state
+  const [paymentMethod, setPaymentMethod] = useState<string>("cash");
+  const [showOtherPaymentModal, setShowOtherPaymentModal] = useState(false);
+  const [otherPaymentType, setOtherPaymentType] =
+    useState<string>("Google Pay");
+  const [otherPaymentNote, setOtherPaymentNote] = useState<string>("");
+
+  // Discount as percentage (0-100)
+  const [discountPct, setDiscountPct] = useState<number>(0);
+
+  // Live current time for KOT display
+  const [currentTime, setCurrentTime] = useState<string>(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  });
+
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setCurrentTime(
+        `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+      );
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const getFinalTotal = () => {
+    const subtotal = getTotalPrice();
+    const pct =
+      Number.isFinite(discountPct) && discountPct > 0 ? discountPct : 0;
+    const discountAmount = (subtotal * pct) / 100;
+    const final = subtotal - discountAmount;
+    return final >= 0 ? final : 0;
+  };
+
+  const handleDiscountChange = (value: string) => {
+    if (value === "") {
+      setDiscountPct(0);
+      return;
+    }
+    // sanitize input to number
+    const num = parseFloat(value as any);
+    if (isNaN(num) || num <= 0) {
+      setDiscountPct(0);
+      return;
+    }
+    const clamped = Math.min(Math.max(num, 0), 100);
+    setDiscountPct(Number(clamped.toFixed(2)));
   };
 
   // Partition items into veg and non-veg lists using normalized itemType
@@ -231,30 +288,38 @@ export default function Pos(): React.ReactElement {
               ) : (
                 <>
                   <div className="pos-items-column">
-                    {vegItems.map((item) => (
-                      <div
-                        key={`v-${item.id}`}
-                        className={`pos-item-card ${
-                          item.isVeg ? "veg" : "non-veg"
-                        }`}
-                        onClick={() => handleAddToCart(item)}
-                      >
-                        <div className="pos-item-name">{item.name}</div>
-                      </div>
-                    ))}
+                    {vegItems.length === 0 ? (
+                      <div className="pos-no-items">No veg items found</div>
+                    ) : (
+                      vegItems.map((item) => (
+                        <div
+                          key={`v-${item.id}`}
+                          className={`pos-item-card ${
+                            item.isVeg ? "veg" : "non-veg"
+                          }`}
+                          onClick={() => handleAddToCart(item)}
+                        >
+                          <div className="pos-item-name">{item.name}</div>
+                        </div>
+                      ))
+                    )}
                   </div>
                   <div className="pos-items-column">
-                    {nonVegItems.map((item) => (
-                      <div
-                        key={`n-${item.id}`}
-                        className={`pos-item-card ${
-                          item.isVeg ? "veg" : "non-veg"
-                        }`}
-                        onClick={() => handleAddToCart(item)}
-                      >
-                        <div className="pos-item-name">{item.name}</div>
-                      </div>
-                    ))}
+                    {nonVegItems.length === 0 ? (
+                      <div className="pos-no-items">No non-veg items found</div>
+                    ) : (
+                      nonVegItems.map((item) => (
+                        <div
+                          key={`n-${item.id}`}
+                          className={`pos-item-card ${
+                            item.isVeg ? "veg" : "non-veg"
+                          }`}
+                          onClick={() => handleAddToCart(item)}
+                        >
+                          <div className="pos-item-name">{item.name}</div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </>
               )}
@@ -312,11 +377,34 @@ export default function Pos(): React.ReactElement {
             <div className="pos-cart-items">
               {cartItems.map((item) => (
                 <div key={item.id} className="pos-cart-item">
-                  <div
-                    className={`pos-cart-indicator ${
-                      item.isVeg ? "veg" : "non-veg"
-                    }`}
-                  ></div>
+                  <button
+                    className="pos-cart-delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeCartItem(item.id);
+                    }}
+                    aria-label="Remove item"
+                    title="Remove item"
+                  >
+                    {/* DeleteIcon copied from Addrestaurant.tsx for exact visual parity */}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="3,6 5,6 21,6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      <line x1="10" y1="11" x2="10" y2="17" />
+                      <line x1="14" y1="11" x2="14" y2="17" />
+                    </svg>
+                  </button>
                   <div className="pos-cart-item-name">{item.name}</div>
                   <div className="pos-cart-controls">
                     <button
@@ -348,9 +436,48 @@ export default function Pos(): React.ReactElement {
 
             <div className="pos-cart-footer">
               <div className="pos-total">
-                <div className="pos-table-info">KOT- 10 Time - 0:330</div>
-                <div className="pos-total-amount">
-                  Total: {getTotalPrice().toFixed(1)}
+                <div className="pos-table-info">
+                  KOT - 10 Time - {currentTime}
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 13, color: "#666" }}>
+                    Subtotal: {getTotalPrice().toFixed(2)}
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      marginTop: 6,
+                    }}
+                  >
+                    <label style={{ fontSize: 13, color: "#333" }}>
+                      Discount:
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      value={discountPct === 0 ? "" : String(discountPct)}
+                      onChange={(e) => handleDiscountChange(e.target.value)}
+                      onFocus={(e) => {
+                        // remove leading 0 placeholder when user focuses
+                        if ((e.target as HTMLInputElement).value === "0")
+                          (e.target as HTMLInputElement).value = "";
+                      }}
+                      onBlur={(e) => {
+                        // ensure discount is clamped and shown as number on blur
+                        const val = (e.target as HTMLInputElement).value;
+                        handleDiscountChange(val);
+                      }}
+                      className="pos-discount-input"
+                    />
+                  </div>
+                  <div className="pos-total-amount" style={{ marginTop: 8 }}>
+                    Total: {getFinalTotal().toFixed(2)}
+                  </div>
                 </div>
               </div>
 
@@ -368,7 +495,12 @@ export default function Pos(): React.ReactElement {
                   <input type="radio" name="payment" /> Part Payment
                 </label>
                 <label>
-                  <input type="radio" name="payment" /> Other
+                  <input
+                    type="radio"
+                    name="payment"
+                    onChange={() => setShowOtherPaymentModal(true)}
+                  />{" "}
+                  Other
                 </label>
               </div>
 
@@ -395,6 +527,64 @@ export default function Pos(): React.ReactElement {
           </div>
         </div>
       </div>
+      {showOtherPaymentModal && (
+        <div className="other-payment-modal">
+          <div className="other-payment-panel">
+            <div className="other-payment-header">
+              <span>Other Payment Type</span>
+              <button
+                className="close-btn"
+                onClick={() => setShowOtherPaymentModal(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="other-payment-body">
+              <label>Other Payment Type</label>
+              <select
+                value={otherPaymentType}
+                onChange={(e) => setOtherPaymentType(e.target.value)}
+              >
+                <option>Google Pay</option>
+                <option>PhonePe</option>
+                <option>Paytm</option>
+                <option>Amazon Pay</option>
+                <option>Cash App</option>
+              </select>
+
+              <textarea
+                placeholder="Notes"
+                value={otherPaymentNote}
+                onChange={(e) => setOtherPaymentNote(e.target.value)}
+              />
+            </div>
+
+            <div className="other-payment-footer">
+              <button
+                className="pos-action-btn"
+                onClick={() => setShowOtherPaymentModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="pos-action-btn"
+                onClick={() => {
+                  // For now, just close and log — backend integration can be added later
+                  console.log(
+                    "Selected other payment:",
+                    otherPaymentType,
+                    otherPaymentNote
+                  );
+                  setShowOtherPaymentModal(false);
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

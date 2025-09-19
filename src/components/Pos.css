@@ -179,6 +179,13 @@
   align-items: start;
 }
 
+.pos-no-items {
+  padding: 12px;
+  color: #777;
+  font-size: 13px;
+  text-align: center;
+}
+
 .pos-item-card {
   position: relative;
   background: #ffffff;
@@ -279,6 +286,24 @@
   font-size: 13px;
   color: #495057;
   align-items: center;
+}
+.pos-cart-delete {
+  background: transparent;
+  border: none;
+  color: #2b4756;
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pos-cart-delete svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+.pos-cart-delete:hover {
+  color: #c0392b; /* turn red on hover to indicate destructive action */
 }
 
 .pos-cart-items {
@@ -388,6 +413,15 @@
   font-size: 14px;
   font-weight: bold;
   color: #333;
+}
+
+.pos-discount-input {
+  width: 90px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #d0d7de;
+  background: #fff;
+  font-size: 13px;
 }
 
 .pos-payment-options {
@@ -516,4 +550,68 @@
   .pos-action-buttons {
     grid-template-columns: 1fr;
   }
+}
+
+/* Other Payment Modal */
+.other-payment-modal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+.other-payment-panel {
+  width: 420px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+.other-payment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  font-weight: 600;
+}
+.close-btn {
+  background: transparent;
+  border: 0;
+  font-size: 20px;
+  cursor: pointer;
+}
+.other-payment-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.other-payment-body select,
+.other-payment-body textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+.other-payment-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+}
+
+.pos-discount-input {
+  width: 92px;
+  padding: 6px 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: right;
 }
